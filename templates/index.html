@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Mind Map Generator</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🗺️ AI Mind Map Generator</h1>
+            <p class="subtitle">Create beautiful mind maps from text using AI</p>
+        </header>
+
+        <!-- Main Content - Full Screen Layout -->
+        <div class="main-content">
+            <!-- Left Sidebar - Create & Saved Maps -->
+            <aside class="sidebar sidebar-left" id="left-sidebar">
+                <button class="sidebar-toggle sidebar-toggle-left" onclick="toggleSidebar('left')" title="Toggle sidebar">
+                    <span id="left-toggle-icon">◀</span>
+                </button>
+                <div class="sidebar-content">
+                    <div class="sidebar-section">
+                        <h2>Create New</h2>
+                        <button class="btn btn-primary" onclick="showCreateDialog()">
+                            ➕ New Mind Map
+                        </button>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h2>Saved Mind Maps</h2>
+                        <div id="mindmap-list" class="mindmap-list">
+                            <p class="empty-state">No mind maps yet</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Visualization Area - Large -->
+            <main class="visualization-area">
+                <div id="mindmap-container" class="mindmap-container">
+                    <div class="welcome-message">
+                        <h2>👋 Welcome!</h2>
+                        <p>Click "New Mind Map" to get started</p>
+                        <p class="hint">Paste your text and let AI create a beautiful mind map</p>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar - Options -->
+            <aside class="sidebar sidebar-right" id="right-sidebar">
+                <button class="sidebar-toggle sidebar-toggle-right" onclick="toggleSidebar('right')" title="Toggle sidebar">
+                    <span id="right-toggle-icon">▶</span>
+                </button>
+                <div class="sidebar-content">
+                    <div class="sidebar-section">
+                        <h2>Color Palette</h2>
+                        <div class="color-palette">
+                            <button class="palette-btn active" data-palette="professional" onclick="changePalette('professional')" style="background: linear-gradient(135deg, #B8D4F0, #B8E6B8);" title="Professional"></button>
+                            <button class="palette-btn" data-palette="vibrant" onclick="changePalette('vibrant')" style="background: linear-gradient(135deg, #FFB6C1, #ADD8E6);" title="Vibrant"></button>
+                            <button class="palette-btn" data-palette="corporate" onclick="changePalette('corporate')" style="background: linear-gradient(135deg, #E0E8F0, #B0E0E6);" title="Corporate"></button>
+                            <button class="palette-btn" data-palette="modern" onclick="changePalette('modern')" style="background: linear-gradient(135deg, #E6D5F5, #B0E0E6);" title="Modern"></button>
+                            <button class="palette-btn" data-palette="neutral" onclick="changePalette('neutral')" style="background: #F5F5DC;" title="Neutral"></button>
+                        </div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h2>Font Style</h2>
+                        <div class="style-options">
+                        <label>
+                            <input type="radio" name="font" value="Arial, sans-serif" checked onchange="changeFont('Arial, sans-serif')">
+                            <span>Arial</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="font" value="Georgia, serif" onchange="changeFont('Georgia, serif')">
+                            <span>Georgia</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="font" value="'Courier New', monospace" onchange="changeFont('Courier New, monospace')">
+                            <span>Courier</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="font" value="'Times New Roman', serif" onchange="changeFont('Times New Roman, serif')">
+                            <span>Times New Roman</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="font" value="'Comic Sans MS', cursive" onchange="changeFont('Comic Sans MS, cursive')">
+                            <span>Comic Sans</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="font" value="'Trebuchet MS', sans-serif" onchange="changeFont('Trebuchet MS, sans-serif')">
+                            <span>Trebuchet MS</span>
+                        </label>
+                    </div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h2>Zoom Controls</h2>
+                        <div class="zoom-controls">
+                            <button class="btn btn-secondary" onclick="zoomIn()">🔍 Zoom In</button>
+                            <button class="btn btn-secondary" onclick="zoomOut()">🔍 Zoom Out</button>
+                            <button class="btn btn-secondary" onclick="resetZoom()">↺ Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Create Dialog -->
+    <div id="create-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2>Create New Mind Map</h2>
+                <button class="close-btn" onclick="hideCreateDialog()">×</button>
+            </div>
+            <div class="dialog-body">
+                <div class="form-group">
+                    <label for="mindmap-title">Title (optional):</label>
+                    <input type="text" id="mindmap-title" placeholder="Enter a title for your mind map">
+                </div>
+                <div class="form-group">
+                    <label for="mindmap-text">Text:</label>
+                    <textarea id="mindmap-text" rows="10" placeholder="Paste or type your text here..."></textarea>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-secondary" onclick="hideCreateDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="createMindMap()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+        window.mermaid = mermaid;
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+

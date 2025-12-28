@@ -1,0 +1,571 @@
+/* Modern, clean design with soft neutral colors */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8e5e0 100%);
+    color: #4a4a4a;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    padding: 15px 20px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+}
+
+.header h1 {
+    font-size: 1.8em;
+    color: #4a4a4a;
+    margin: 0;
+    font-weight: 300;
+}
+
+.subtitle {
+    color: #8a8a8a;
+    font-size: 0.9em;
+    margin: 5px 0 0 0;
+}
+
+/* Main Content Layout - Full Screen */
+.main-content {
+    display: flex;
+    gap: 0;
+    height: calc(100vh - 80px);
+    flex: 1;
+    overflow: visible; /* Allow toggle buttons to be visible outside */
+    position: relative;
+}
+
+/* Sidebar */
+.sidebar {
+    background: white;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+    position: relative;
+    transition: width 0.3s ease, margin 0.3s ease;
+    overflow: visible; /* Changed from hidden to visible so toggle buttons show */
+}
+
+.sidebar-left {
+    width: 320px;
+    border-right: 1px solid #e8e5e0;
+}
+
+.sidebar-right {
+    width: 320px;
+    border-left: 1px solid #e8e5e0;
+}
+
+.sidebar.collapsed {
+    width: 0;
+    margin: 0;
+    border: none;
+    min-width: 0;
+    overflow: visible; /* Ensure buttons are visible when collapsed */
+}
+
+.sidebar-content {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.sidebar.collapsed .sidebar-content {
+    display: none;
+}
+
+/* Sidebar Toggle Button - Always visible, even when collapsed */
+.sidebar-toggle {
+    position: fixed; /* Fixed positioning so buttons stay visible when sidebar collapses */
+    top: 50%;
+    transform: translateY(-50%);
+    background: white;
+    border: 1px solid #e8e5e0;
+    border-radius: 4px;
+    width: 30px;
+    height: 60px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease, right 0.3s ease;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.sidebar-toggle:hover {
+    background: #f5f5f5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-toggle-left {
+    left: 320px; /* Position at right edge of open sidebar (320px width) */
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+}
+
+.sidebar.collapsed .sidebar-toggle-left {
+    left: 0; /* When collapsed, position at screen left edge */
+}
+
+.sidebar-toggle-right {
+    right: 320px; /* Position at left edge of open sidebar (320px width) */
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+}
+
+.sidebar.collapsed .sidebar-toggle-right {
+    right: 0; /* When collapsed, position at screen right edge */
+}
+
+/* Ensure toggle buttons are always visible even when sidebar is collapsed */
+.sidebar.collapsed .sidebar-toggle {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.sidebar-toggle span {
+    font-size: 12px;
+    color: #6a6a6a;
+    user-select: none;
+}
+
+.sidebar-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e8e5e0;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.sidebar-section h2 {
+    font-size: 1.1em;
+    color: #6a6a6a;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    width: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #a89b8c 0%, #9b8a7a 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #9b8a7a 0%, #8a7a6a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(168, 155, 140, 0.3);
+}
+
+.btn-secondary {
+    background: #e8e5e0;
+    color: #6a6a6a;
+}
+
+.btn-secondary:hover {
+    background: #d4c5b9;
+}
+
+/* Style Options */
+.style-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.style-options label {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.style-options label:hover {
+    background: #f5f5f5;
+}
+
+.style-options input[type="radio"] {
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+/* Color Palette */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.palette-btn {
+    width: 100%;
+    height: 50px;
+    border: 3px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.palette-btn:hover {
+    transform: scale(1.05);
+    border-color: #a89b8c;
+}
+
+.palette-btn.active {
+    border-color: #6a6a6a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transform: scale(1.1);
+}
+
+/* Zoom Controls */
+.zoom-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.zoom-controls .btn {
+    padding: 10px;
+    font-size: 0.9em;
+}
+
+/* Mind Map List */
+.mindmap-list {
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+.mindmap-item {
+    padding: 14px;
+    margin-bottom: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.mindmap-item:hover {
+    background: #f0f0f0;
+    border-left-color: #a89b8c;
+    transform: translateX(3px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mindmap-item.active {
+    background: #e8e5e0;
+    border-left-color: #6a6a6a;
+    font-weight: 500;
+}
+
+.mindmap-item-title {
+    font-weight: 500;
+    color: #4a4a4a;
+    margin-bottom: 4px;
+}
+
+.mindmap-item-date {
+    font-size: 0.85em;
+    color: #8a8a8a;
+}
+
+.empty-state {
+    text-align: center;
+    color: #8a8a8a;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* Visualization Area - Large Center */
+.visualization-area {
+    flex: 1;
+    min-width: 0; /* Important for flex items to shrink below content size */
+    background: white;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    transition: margin 0.3s ease;
+    flex-direction: column;
+    width: 100%; /* Ensure it takes available space */
+}
+
+.mindmap-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    flex: 1;
+}
+
+#mindmap {
+    width: 100%;
+    height: 100%;
+}
+
+.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.node {
+    cursor: pointer;
+}
+
+.node rect {
+    transition: all 0.2s;
+}
+
+.node:hover rect {
+    filter: brightness(1.1);
+    stroke-width: 3px;
+}
+
+.link {
+    transition: stroke-width 0.2s;
+}
+
+.node:hover ~ .link {
+    stroke-width: 3px;
+}
+
+.welcome-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #8a8a8a;
+}
+
+.welcome-message h2 {
+    font-size: 2em;
+    margin-bottom: 15px;
+    color: #6a6a6a;
+    font-weight: 300;
+}
+
+.welcome-message p {
+    font-size: 1.1em;
+    margin-bottom: 10px;
+}
+
+.hint {
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+/* Dialog */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.dialog {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.dialog-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e8e5e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dialog-header h2 {
+    font-size: 1.5em;
+    color: #4a4a4a;
+    font-weight: 500;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #8a8a8a;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #f5f5f5;
+    color: #4a4a4a;
+}
+
+.dialog-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.dialog-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e8e5e0;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.dialog-footer .btn {
+    width: auto;
+    min-width: 100px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #6a6a6a;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e8e5e0;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: inherit;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #a89b8c;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 200px;
+}
+
+/* Loading State */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #8a8a8a;
+    font-size: 1.2em;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f5f5f5;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d4c5b9;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a89b8c;
+}
+
+/* Large screen optimizations */
+@media (min-width: 1920px) {
+    .sidebar-left, .sidebar-right {
+        width: 360px;
+    }
+    
+    .sidebar-section h2 {
+        font-size: 1.2em;
+    }
+    
+    .btn {
+        padding: 14px 24px;
+        font-size: 1.05em;
+    }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1920px) {
+    .sidebar-left, .sidebar-right {
+        width: 360px;
+    }
+    
+    .sidebar-section h2 {
+        font-size: 1.2em;
+    }
+    
+    .btn {
+        padding: 14px 24px;
+        font-size: 1.05em;
+    }
+}
+
