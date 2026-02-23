@@ -3,7 +3,7 @@ from app.services.ai_service import AIService
 from app.repositories.mindmap_repository import MindMapRepository
 from datetime import datetime
 import uuid
-from typing import Optional
+from typing import Optional, Dict, Any
 
 class MindMapService:
     """Business logic service for mind maps"""
@@ -192,4 +192,79 @@ class MindMapService:
     def delete_mindmap(self, mindmap_id: str) -> bool:
         """Delete a mind map"""
         return self.repository.delete(mindmap_id)
+
+    def rename_mindmap(self, mindmap_id: str, new_title: str) -> Optional[MindMap]:
+        """Rename a mind map."""
+        mindmap = self.repository.get_by_id(mindmap_id)
+        if not mindmap:
+            return None
+        mindmap.title = new_title.strip() or mindmap.title
+        self.repository.save(mindmap)
+        return mindmap
+
+    def _mindmap_to_ai_structure(self, mindmap: MindMap) -> Dict[str, Any]:
+        """Convert MindMap to the AI structure format (root + branches)."""
+        def node_to_branch(node: Node) -> dict:
+            out = {"label": node.label}
+            if node.metadata.get("group"):
+                out["group"] = node.metadata["group"]
+            if node.children:
+                out["children"] = [node_to_branch(c) for c in node.children]
+            return out
+        root_label = mindmap.root.label
+        branches = [node_to_branch(c) for c in mindmap.root.children]
+        return {"root": root_label, "branches": branches}
+
+    def update_from_prompt(self, mindmap_id: str, prompt: str) -> Optional[MindMap]:
+        """Update a mind map based on a natural language prompt."""
+        mindmap = self.repository.get_by_id(mindmap_id)
+        if not mindmap or not prompt or not prompt.strip():
+            return None
+        current = self._mindmap_to_ai_structure(mindmap)
+        structure = self.ai_service.update_mindmap_structure(current, prompt.strip())
+        # Rebuild mind map from structure, keeping same id and created_at
+        root_id = mindmap.root.id
+        root = Node(
+            id=root_id,
+            label=structure.get("root", mindmap.root.label),
+            node_type="root",
+        )
+        MAX_DEPTH = 3
+
+        def create_node_recursive(node_data: dict, parent_id: str, level: int = 1, inherited_group: str = None) -> Optional[Node]:
+            if level > MAX_DEPTH:
+                return None
+            node_id = str(uuid.uuid4())
+            node_type = "branch" if level == 1 else "child"
+            node_group = node_data.get("group", inherited_group) if level == 1 else inherited_group
+            metadata = {"group": node_group} if node_group else {}
+            node = Node(
+                id=node_id,
+                label=node_data["label"],
+                node_type=node_type,
+                parent_id=parent_id,
+                metadata=metadata,
+            )
+            for child_data in node_data.get("children") or []:
+                if level < MAX_DEPTH:
+                    child_node = create_node_recursive(child_data, node_id, level + 1, node_group)
+                    if child_node:
+                        node.children.append(child_node)
+            return node
+
+        for branch_data in structure.get("branches") or []:
+            branch = create_node_recursive(branch_data, root_id, level=1)
+            if branch:
+                root.children.append(branch)
+
+        updated = MindMap(
+            id=mindmap.id,
+            title=mindmap.title,
+            root=root,
+            created_at=mindmap.created_at,
+            updated_at=datetime.now(),
+            metadata=mindmap.metadata,
+        )
+        self.repository.save(updated)
+        return updated
 

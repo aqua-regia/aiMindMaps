@@ -1,6 +1,6 @@
 from openai import OpenAI
 from config import Config
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import re
 
@@ -336,4 +336,249 @@ Return only the JSON, no additional text."""
                     f"Error: {str(e)}. "
                     f"Response preview: {content[:200]}..."
                 )
+
+    def generate_sequence_diagram(self, text_input: str) -> str:
+        """Generate Mermaid sequence diagram code from natural language using AI."""
+        prompt = f"""You are a sequence diagram expert. Given the following description or scenario, output ONLY valid Mermaid sequence diagram code.
+
+RULES:
+- Use Mermaid "sequenceDiagram" syntax only.
+- First line must be exactly: sequenceDiagram
+- Define participants with "participant Name" or "participant Alias as Display Name".
+- Use arrows: -> (solid), --> (dotted), ->> (solid open),-->> (dotted open).
+- Put message text after the colon, e.g. A->>B: request data
+- Keep participant names and messages short and clear (no newlines inside).
+- Use only ASCII for participant names and messages; avoid quotes/special chars that break Mermaid.
+- If the text describes a flow (e.g. user logs in, server validates, DB stores), extract actors (User, Browser, Server, API, Database, etc.) and messages in order.
+- If the text is a story or paragraph, infer the main actors and their interactions and order them left-to-right by first appearance.
+- Output ONLY the Mermaid code. No markdown code block, no explanation, no extra text.
+
+Example output format:
+sequenceDiagram
+    participant U as User
+    participant S as Server
+    participant D as Database
+    U->>S: login request
+    S->>D: validate credentials
+    D-->>S: ok
+    S-->>U: welcome
+
+TEXT TO CONVERT:
+{text_input}
+"""
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You output only raw Mermaid sequenceDiagram code. No markdown, no code fences, no explanation. First line must be sequenceDiagram."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+        )
+        content = response.choices[0].message.content.strip()
+        # Strip markdown code block if present
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].lower().startswith("```mermaid"):
+                lines = lines[1:]
+            else:
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        if not content.lower().startswith("sequencediagram"):
+            content = "sequenceDiagram\n" + content
+        return content
+
+    def update_sequence_diagram(self, current_mermaid: str, user_prompt: str) -> str:
+        """Update existing Mermaid sequence diagram based on a natural language prompt."""
+        prompt = f"""You are a sequence diagram expert. Below is an existing Mermaid sequence diagram. The user wants to update it.
+
+Apply the user's requested change(s). Keep everything else the same unless the user asks to remove something.
+Output ONLY valid Mermaid sequenceDiagram code. Same rules: first line is sequenceDiagram, use participant, ->, ->>, -->, -->>, etc. No markdown, no explanation.
+
+CURRENT DIAGRAM:
+```
+{current_mermaid}
+```
+
+USER REQUEST:
+{user_prompt}
+
+Output ONLY the complete updated Mermaid code (the full diagram after applying the change)."""
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You output only raw Mermaid sequenceDiagram code. No markdown, no code fences, no explanation. First line must be sequenceDiagram."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        if not content.lower().startswith("sequencediagram"):
+            content = "sequenceDiagram\n" + content
+        return content
+
+    def update_mindmap_structure(self, current_structure: Dict[str, Any], user_prompt: str) -> Dict[str, Any]:
+        """Update existing mind map structure (root + branches) based on a natural language prompt."""
+        import json as _json
+        structure_str = _json.dumps(current_structure, indent=2)
+        prompt = f"""You are a mind map expert. Below is an existing mind map in JSON format. The user wants to update it.
+
+Apply the user's requested change(s): add nodes, remove nodes, rename nodes, or reorganize. Keep the same JSON shape: "root" (string), "branches" (array of objects with "label", optional "group", optional "children").
+- Maximum depth = 3 levels (root=0, then level 1, 2, 3).
+- Keep nodes as complete thoughts, not single keywords.
+- Use only light, neutral color groups (e.g. "causes", "effects", "constraints").
+Output ONLY valid JSON. No markdown, no explanation. Start with {{ and end with }}.
+
+CURRENT MIND MAP:
+{structure_str}
+
+USER REQUEST:
+{user_prompt}
+
+Output ONLY the complete updated JSON (root + branches)."""
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a JSON-only assistant. Respond with ONLY valid JSON. No markdown, no explanation. Start with { and end with }."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(0)
+        content = re.sub(r',\s*}', '}', content)
+        content = re.sub(r',\s*]', ']', content)
+        return json.loads(content)
+
+    def generate_flowchart(self, text_input: str) -> str:
+        """Generate Mermaid flowchart code from natural language using AI."""
+        prompt = f"""You are a flowchart expert. Given the following description, output ONLY valid Mermaid flowchart code.
+
+DIRECTION (MANDATORY):
+- Always use top-down flow. First line MUST be exactly: flowchart TD
+- Never use flowchart LR. Arrows must flow from up to down.
+
+NODE SHAPES (use a variety, not only rectangles):
+- Start/End: stadium shape id([Label]) or rounded id(Label)
+- Process/Steps: rounded rectangles id(Label) or id([Label]) for stadium
+- Decisions: diamond id{{Label}}
+- Data/Storage: cylinder id[(Label)]
+- Subroutines: rectangle with rounded corners id(Label)
+- Use id[rectangle] only occasionally for emphasis, not for every node
+- Mix shapes to make the diagram visually clear: diamonds for decisions, stadiums for start/end, rounded for processes.
+
+ARROWS:
+- A --> B (solid arrow down)
+- A -->|label| B (with label on arrow)
+- A -.-> B (dotted for optional/alternate)
+- Keep flow top-down; chain steps vertically.
+
+STYLE:
+- Keep node ids and labels short. Use only ASCII; avoid characters that break Mermaid (no quotes, semicolons, or square brackets inside labels).
+- Use subgraph for logical groups when it helps.
+- Output ONLY the Mermaid code. No markdown code block, no explanation.
+
+Example (top-down, mixed shapes):
+flowchart TD
+    A([Start]) --> B{{Valid?}}
+    B -->|Yes| C(Process data)
+    B -->|No| D(Show error)
+    C --> E[(Save)]
+    D --> E
+    E --> F([End])
+
+TEXT TO CONVERT:
+{text_input}
+"""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You output only raw Mermaid flowchart code. No markdown, no code fences. First line must be flowchart TD (top-down only, never LR)."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        if not content.lower().startswith("flowchart"):
+            content = "flowchart TD\n" + content
+        # Force top-down: replace LR with TD
+        if content.lower().startswith("flowchart lr"):
+            content = "flowchart TD" + content[12:]
+        return content
+
+    def update_flowchart(self, current_mermaid: str, user_prompt: str) -> str:
+        """Update existing Mermaid flowchart based on a natural language prompt."""
+        prompt = f"""You are a flowchart expert. Below is an existing Mermaid flowchart. The user wants to update it.
+
+Apply the user's requested change(s).
+- Keep direction as top-down: use flowchart TD (never LR).
+- Use a variety of node shapes: stadium ([ ]), rounded ( ), diamond {{ }}, cylinder [( )], not only rectangles.
+- Output ONLY valid Mermaid flowchart code. No markdown, no explanation.
+
+CURRENT FLOWCHART:
+```
+{current_mermaid}
+```
+
+USER REQUEST:
+{user_prompt}
+
+Output ONLY the complete updated Mermaid flowchart code (flowchart TD, mixed shapes)."""
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You output only raw Mermaid flowchart code. No markdown, no code fences. First line must be flowchart TD (top-down only)."
+                },
+                {"role": "user", "content": prompt},
+            ],
+            stream=False,
+        )
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        if not content.lower().startswith("flowchart"):
+            content = "flowchart TD\n" + content
+        if content.lower().startswith("flowchart lr"):
+            content = "flowchart TD" + content[12:]
+        return content
 

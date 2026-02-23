@@ -1,9 +1,14 @@
 // Global state
 let currentMindMapId = null;
+let currentSequenceDiagramId = null;
+let currentFlowchartId = null;
 let currentPalette = 'professional';
+let currentSeqDiagramStyle = 'colorful';
 let currentFontFamily = 'Arial, sans-serif';
 let network = null;
 let mindmaps = [];
+let sequenceDiagrams = [];
+let flowcharts = [];
 let appConfig = null;
 
 // Layout constants - loaded from config
@@ -43,6 +48,8 @@ let COLOR_CONFIG = {
 document.addEventListener('DOMContentLoaded', async function() {
     await loadConfig();
     loadMindMaps();
+    loadSequenceDiagrams();
+    loadFlowcharts();
     
     // Add resize listener to handle sidebar collapse/expand and window resize
     let resizeTimeout;
@@ -116,19 +123,95 @@ async function loadMindMaps() {
     }
 }
 
-// Render mind map list
+// Load all sequence diagrams
+async function loadSequenceDiagrams() {
+    try {
+        const response = await fetch('/api/sequence-diagrams');
+        const data = await response.json();
+        sequenceDiagrams = Array.isArray(data) ? data : [];
+        renderSequenceDiagramList();
+    } catch (error) {
+        console.error('Error loading sequence diagrams:', error);
+        sequenceDiagrams = [];
+        renderSequenceDiagramList();
+    }
+}
+
+// Render sequence diagram list in sidebar (with rename & delete)
+function renderSequenceDiagramList() {
+    const listContainer = document.getElementById('sequence-diagram-list');
+    if (!listContainer) return;
+    if (sequenceDiagrams.length === 0) {
+        listContainer.innerHTML = '<p class="empty-state">No sequence diagrams yet</p>';
+        return;
+    }
+    listContainer.innerHTML = sequenceDiagrams.map(d => `
+        <div class="mindmap-item ${d.id === currentSequenceDiagramId ? 'active' : ''}" data-id="${escapeHtml(d.id)}" onclick="loadSequenceDiagram('${escapeHtml(d.id)}')">
+            <div class="mindmap-item-body">
+                <span class="mindmap-item-title">${escapeHtml(d.title)}</span>
+                <div class="mindmap-item-actions">
+                    <button type="button" class="item-btn rename-btn" title="Rename" onclick="event.stopPropagation(); startRenameSequenceDiagram('${escapeHtml(d.id)}')">✎</button>
+                    <button type="button" class="item-btn delete-btn" title="Delete" onclick="event.stopPropagation(); deleteSequenceDiagram('${escapeHtml(d.id)}')">🗑</button>
+                </div>
+            </div>
+            <div class="mindmap-item-date">${new Date(d.created_at).toLocaleDateString()}</div>
+        </div>
+    `).join('');
+}
+
+// Load all flowcharts
+async function loadFlowcharts() {
+    try {
+        const response = await fetch('/api/flowcharts');
+        const data = await response.json();
+        flowcharts = Array.isArray(data) ? data : [];
+        renderFlowchartList();
+    } catch (error) {
+        console.error('Error loading flowcharts:', error);
+        flowcharts = [];
+        renderFlowchartList();
+    }
+}
+
+// Render flowchart list in sidebar (with rename & delete)
+function renderFlowchartList() {
+    const listContainer = document.getElementById('flowchart-list');
+    if (!listContainer) return;
+    if (flowcharts.length === 0) {
+        listContainer.innerHTML = '<p class="empty-state">No flowcharts yet</p>';
+        return;
+    }
+    listContainer.innerHTML = flowcharts.map(d => `
+        <div class="mindmap-item ${d.id === currentFlowchartId ? 'active' : ''}" data-id="${escapeHtml(d.id)}" onclick="loadFlowchart('${escapeHtml(d.id)}')">
+            <div class="mindmap-item-body">
+                <span class="mindmap-item-title">${escapeHtml(d.title)}</span>
+                <div class="mindmap-item-actions">
+                    <button type="button" class="item-btn rename-btn" title="Rename" onclick="event.stopPropagation(); startRenameFlowchart('${escapeHtml(d.id)}')">✎</button>
+                    <button type="button" class="item-btn delete-btn" title="Delete" onclick="event.stopPropagation(); deleteFlowchart('${escapeHtml(d.id)}')">🗑</button>
+                </div>
+            </div>
+            <div class="mindmap-item-date">${new Date(d.created_at).toLocaleDateString()}</div>
+        </div>
+    `).join('');
+}
+
+// Render mind map list (with rename & delete)
 function renderMindMapList() {
     const listContainer = document.getElementById('mindmap-list');
-    
+    if (!listContainer) return;
     if (mindmaps.length === 0) {
         listContainer.innerHTML = '<p class="empty-state">No mind maps yet</p>';
         return;
     }
-    
     listContainer.innerHTML = mindmaps.map(mm => `
-        <div class="mindmap-item ${mm.id === currentMindMapId ? 'active' : ''}" 
-             onclick="loadMindMap('${mm.id}')">
-            <div class="mindmap-item-title">${escapeHtml(mm.title)}</div>
+        <div class="mindmap-item ${mm.id === currentMindMapId ? 'active' : ''}" data-id="${escapeHtml(mm.id)}" onclick="loadMindMap('${escapeHtml(mm.id)}')">
+            <div class="mindmap-item-body">
+                <span class="mindmap-item-title">${escapeHtml(mm.title)}</span>
+                <div class="mindmap-item-actions">
+                    <button type="button" class="item-btn rename-btn" title="Rename" onclick="event.stopPropagation(); startRenameMindMap('${escapeHtml(mm.id)}')">✎</button>
+                    <button type="button" class="item-btn delete-btn" title="Delete" onclick="event.stopPropagation(); deleteMindMap('${escapeHtml(mm.id)}')">🗑</button>
+                </div>
+            </div>
             <div class="mindmap-item-date">${new Date(mm.created_at).toLocaleDateString()}</div>
         </div>
     `).join('');
@@ -145,6 +228,783 @@ function hideCreateDialog() {
     document.getElementById('create-dialog').style.display = 'none';
     document.getElementById('mindmap-title').value = '';
     document.getElementById('mindmap-text').value = '';
+}
+
+// Show sequence diagram create dialog
+function showSequenceDiagramDialog() {
+    document.getElementById('sequence-diagram-dialog').style.display = 'flex';
+    document.getElementById('seq-text').focus();
+}
+
+// Hide sequence diagram dialog
+function hideSequenceDiagramDialog() {
+    document.getElementById('sequence-diagram-dialog').style.display = 'none';
+    document.getElementById('seq-title').value = '';
+    document.getElementById('seq-text').value = '';
+}
+
+// Show flowchart create dialog
+function showFlowchartDialog() {
+    document.getElementById('flowchart-dialog').style.display = 'flex';
+    document.getElementById('flowchart-text').focus();
+}
+
+// Hide flowchart dialog
+function hideFlowchartDialog() {
+    document.getElementById('flowchart-dialog').style.display = 'none';
+    document.getElementById('flowchart-title').value = '';
+    document.getElementById('flowchart-text').value = '';
+}
+
+// Create new sequence diagram
+async function createSequenceDiagram() {
+    const title = document.getElementById('seq-title').value.trim();
+    const text = document.getElementById('seq-text').value.trim();
+    if (!text) {
+        alert('Please describe the flow or paste text');
+        return;
+    }
+    hideSequenceDiagramDialog();
+    showLoading();
+    try {
+        const response = await fetch('/api/sequence-diagrams', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, title: title || undefined })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to create sequence diagram');
+        }
+        const diagram = await response.json();
+        if (!diagram || !diagram.id) {
+            throw new Error('Invalid response: diagram not saved');
+        }
+        currentSequenceDiagramId = diagram.id;
+        currentMindMapId = null;
+        displaySequenceDiagram(diagram);
+        hideLoading();
+        await loadSequenceDiagrams();
+        renderSequenceDiagramList();
+        loadMindMaps();
+        loadFlowcharts();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+// Load sequence diagram by id
+async function loadSequenceDiagram(id) {
+    showLoading();
+    currentSequenceDiagramId = id;
+    currentMindMapId = null;
+    currentFlowchartId = null;
+    try {
+        const response = await fetch(`/api/sequence-diagrams/${id}`);
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to load sequence diagram');
+        }
+        const diagram = await response.json();
+        displaySequenceDiagram(diagram);
+        renderSequenceDiagramList();
+        renderMindMapList();
+        renderFlowchartList();
+        showUpdatePromptSection();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+function showUpdatePromptSection() {
+    const section = document.getElementById('update-prompt-section');
+    if (section) section.style.display = (currentMindMapId || currentSequenceDiagramId || currentFlowchartId) ? 'block' : 'none';
+    const input = document.getElementById('update-prompt-input');
+    if (input) input.value = '';
+}
+
+function hideUpdatePromptSection() {
+    const section = document.getElementById('update-prompt-section');
+    if (section) section.style.display = 'none';
+}
+
+function showWelcome() {
+    const container = document.getElementById('mindmap-container');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="welcome-message">
+            <h2>👋 Welcome!</h2>
+            <p>Click "New Mind Map" to get started</p>
+            <p class="hint">Paste your text and let AI create a beautiful mind map</p>
+        </div>
+    `;
+    hideBackButton();
+}
+
+// Rename mind map: show inline edit
+function startRenameMindMap(id) {
+    const mm = mindmaps.find(m => m.id === id);
+    if (!mm) return;
+    const item = document.querySelector(`#mindmap-list .mindmap-item[data-id="${id.replace(/"/g, '&quot;')}"]`);
+    if (!item) return;
+    const titleEl = item.querySelector('.mindmap-item-title');
+    if (!titleEl) return;
+    const orig = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'item-rename-input';
+    input.value = orig;
+    input.dataset.id = id;
+    input.dataset.kind = 'mindmap';
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+    input.onblur = () => commitRename(input);
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.value = orig; input.blur(); } };
+}
+
+function startRenameSequenceDiagram(id) {
+    const d = sequenceDiagrams.find(x => x.id === id);
+    if (!d) return;
+    const item = document.querySelector(`#sequence-diagram-list .mindmap-item[data-id="${id.replace(/"/g, '&quot;')}"]`);
+    if (!item) return;
+    const titleEl = item.querySelector('.mindmap-item-title');
+    if (!titleEl) return;
+    const orig = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'item-rename-input';
+    input.value = orig;
+    input.dataset.id = id;
+    input.dataset.kind = 'sequence';
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+    input.onblur = () => commitRename(input);
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.value = orig; input.blur(); } };
+}
+
+async function commitRename(input) {
+    const id = input.dataset.id;
+    const kind = input.dataset.kind;
+    const newTitle = (input.value || '').trim();
+    const parent = input.closest('.mindmap-item');
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'mindmap-item-title';
+    if (kind === 'mindmap') {
+        const mm = mindmaps.find(m => m.id === id);
+        titleSpan.textContent = mm ? mm.title : newTitle || 'Untitled';
+    } else if (kind === 'sequence') {
+        const d = sequenceDiagrams.find(x => x.id === id);
+        titleSpan.textContent = d ? d.title : newTitle || 'Sequence Diagram';
+    } else {
+        const f = flowcharts.find(x => x.id === id);
+        titleSpan.textContent = f ? f.title : newTitle || 'Flowchart';
+    }
+    input.replaceWith(titleSpan);
+    if (!newTitle) return;
+    const url = kind === 'mindmap' ? `/api/mindmaps/${id}` : (kind === 'flowchart' ? `/api/flowcharts/${id}` : `/api/sequence-diagrams/${id}`);
+    try {
+        const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: newTitle }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Rename failed');
+        if (kind === 'mindmap') {
+            await loadMindMaps();
+        } else if (kind === 'sequence') {
+            await loadSequenceDiagrams();
+        } else {
+            await loadFlowcharts();
+        }
+        renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+    } catch (e) {
+        console.error(e);
+        if (kind === 'mindmap') {
+            const mm = mindmaps.find(m => m.id === id);
+            titleSpan.textContent = mm ? mm.title : 'Untitled';
+        } else if (kind === 'sequence') {
+            const d = sequenceDiagrams.find(x => x.id === id);
+            titleSpan.textContent = d ? d.title : 'Sequence Diagram';
+        } else {
+            const f = flowcharts.find(x => x.id === id);
+            titleSpan.textContent = f ? f.title : 'Flowchart';
+        }
+    }
+}
+
+function startRenameFlowchart(id) {
+    const f = flowcharts.find(x => x.id === id);
+    if (!f) return;
+    const item = document.querySelector(`#flowchart-list .mindmap-item[data-id="${id.replace(/"/g, '&quot;')}"]`);
+    if (!item) return;
+    const titleEl = item.querySelector('.mindmap-item-title');
+    if (!titleEl) return;
+    const orig = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'item-rename-input';
+    input.value = orig;
+    input.dataset.id = id;
+    input.dataset.kind = 'flowchart';
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+    input.onblur = () => commitRename(input);
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.value = orig; input.blur(); } };
+}
+
+async function deleteMindMap(id) {
+    if (!confirm('Delete this mind map? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`/api/mindmaps/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        if (currentMindMapId === id) {
+            currentMindMapId = null;
+            showWelcome();
+            hideUpdatePromptSection();
+        }
+        await loadMindMaps();
+        renderMindMapList();
+        renderSequenceDiagramList();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteSequenceDiagram(id) {
+    if (!confirm('Delete this sequence diagram? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`/api/sequence-diagrams/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        if (currentSequenceDiagramId === id) {
+            currentSequenceDiagramId = null;
+            showWelcome();
+            hideUpdatePromptSection();
+        }
+        await loadSequenceDiagrams();
+        renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteFlowchart(id) {
+    if (!confirm('Delete this flowchart? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`/api/flowcharts/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        if (currentFlowchartId === id) {
+            currentFlowchartId = null;
+            showWelcome();
+            hideUpdatePromptSection();
+        }
+        await loadFlowcharts();
+        renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function changeSeqDiagramStyle(style) {
+    currentSeqDiagramStyle = style === 'bw' ? 'bw' : 'colorful';
+    document.querySelectorAll('input[name="seq-style"]').forEach(function(radio) {
+        radio.checked = radio.value === currentSeqDiagramStyle;
+    });
+    if (currentSequenceDiagramId) {
+        loadSequenceDiagram(currentSequenceDiagramId);
+    }
+}
+
+async function updateWithPrompt() {
+    const input = document.getElementById('update-prompt-input');
+    const prompt = (input && input.value || '').trim();
+    if (!prompt) {
+        alert('Enter a prompt describing what to add or change.');
+        return;
+    }
+    if (currentMindMapId) {
+        showLoading();
+        try {
+            const res = await fetch(`/api/mindmaps/${currentMindMapId}?palette=${currentPalette}&fontFamily=${encodeURIComponent(currentFontFamily)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Update failed');
+            const data = await res.json();
+            if (input) input.value = '';
+            displayMindMap(data.data);
+            loadMindMaps();
+            renderMindMapList();
+            hideLoading();
+        } catch (e) {
+            alert('Error: ' + e.message);
+            hideLoading();
+        }
+        return;
+    }
+    if (currentSequenceDiagramId) {
+        showLoading();
+        try {
+            const res = await fetch(`/api/sequence-diagrams/${currentSequenceDiagramId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Update failed');
+            const diagram = await res.json();
+            if (input) input.value = '';
+            displaySequenceDiagram(diagram);
+            loadSequenceDiagrams();
+            renderSequenceDiagramList();
+            hideLoading();
+        } catch (e) {
+            alert('Error: ' + e.message);
+            hideLoading();
+        }
+        return;
+    }
+    if (currentFlowchartId) {
+        showLoading();
+        try {
+            const res = await fetch(`/api/flowcharts/${currentFlowchartId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Update failed');
+            const diagram = await res.json();
+            if (input) input.value = '';
+            displayFlowchart(diagram);
+            loadFlowcharts();
+            renderFlowchartList();
+            hideLoading();
+        } catch (e) {
+            alert('Error: ' + e.message);
+            hideLoading();
+        }
+        return;
+    }
+    alert('Select a mind map, sequence diagram, or flowchart first.');
+}
+
+// Sanitize Mermaid sequence diagram to avoid common parse errors
+function sanitizeMermaidSequence(syntax) {
+    if (!syntax || typeof syntax !== 'string') return syntax;
+    let s = syntax;
+    // "loop for each ..." can confuse parser
+    s = s.replace(/\bloop\s+for\s+/gi, 'loop For ');
+    // Mermaid 10 "Note over" accepts only two participants; rewrite "Note over A,B,C,D: text" -> "Note over A,D: text"
+    s = s.replace(/Note over ([^:]+):/g, function(match, participants) {
+        const list = participants.split(',').map(function(p) { return p.trim(); }).filter(Boolean);
+        if (list.length > 2) {
+            return 'Note over ' + list[0] + ',' + list[list.length - 1] + ':';
+        }
+        return match;
+    });
+    // "box" may only contain participant/actor declarations, not messages. Remove malformed box blocks that contain arrows.
+    s = s.replace(/\bbox\s+[^\n]+\n([\s\S]*?)\bend\b/g, function(match, inner) {
+        var hasArrow = /--?>>?/.test(inner);
+        if (hasArrow) {
+            return inner;
+        }
+        return match;
+    });
+    return s;
+}
+
+// Display sequence diagram in main area (Mermaid)
+async function displaySequenceDiagram(diagram) {
+    const container = document.getElementById('mindmap-container');
+    if (!container) return;
+    let mermaidSyntax = diagram.mermaid_syntax || diagram.mermaidSyntax;
+    if (!mermaidSyntax) {
+        container.innerHTML = '<p class="error">No diagram data</p>';
+        hideLoading();
+        return;
+    }
+    mermaidSyntax = sanitizeMermaidSequence(mermaidSyntax);
+    var styleClass = currentSeqDiagramStyle === 'bw' ? 'seq-bw' : 'seq-colorful';
+    var paletteClass = (currentSeqDiagramStyle === 'bw') ? '' : (' seq-palette-' + (currentPalette || 'professional'));
+    container.innerHTML = '<div id="seq-diagram-wrap" class="sequence-diagram-wrap ' + styleClass + paletteClass + '"></div>';
+    const wrap = document.getElementById('seq-diagram-wrap');
+    const uniqueId = 'mermaid-seq-' + Date.now();
+    try {
+        if (typeof window.mermaid === 'undefined') {
+            wrap.innerHTML = '<p class="error">Mermaid not loaded. Refresh the page.</p>';
+            hideLoading();
+            return;
+        }
+        var fontFamily = (currentFontFamily || 'Arial, sans-serif').replace(/^'|'$/g, '');
+        if (window.mermaid && window.mermaid.initialize) {
+            window.mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose',
+                sequence: {
+                    actorFontFamily: fontFamily,
+                    messageFontFamily: fontFamily,
+                    noteFontFamily: fontFamily,
+                    actorFontSize: 14,
+                    messageFontSize: 14,
+                    noteFontSize: 14
+                }
+            });
+        }
+        const { svg } = await window.mermaid.render(uniqueId, mermaidSyntax);
+        wrap.innerHTML = svg;
+        showBackButton();
+        hideLoading();
+    } catch (err) {
+        const errMsg = (err && (err.message || err.str || String(err))) || 'Unknown error';
+        console.error('Mermaid render error:', err);
+        wrap.innerHTML =
+            '<p class="error">Could not render diagram.</p>' +
+            '<p class="error-detail">' + escapeHtml(errMsg) + '</p>' +
+            '<p class="sidebar-hint">Try simplifying the diagram or avoid "loop for" (use "loop For each" or "loop Process each").</p>' +
+            '<pre class="mermaid-source">' + escapeHtml(mermaidSyntax) + '</pre>';
+        hideLoading();
+    }
+}
+
+// Create new flowchart
+async function createFlowchart() {
+    const title = document.getElementById('flowchart-title').value.trim();
+    const text = document.getElementById('flowchart-text').value.trim();
+    if (!text) {
+        alert('Please describe the process or paste text');
+        return;
+    }
+    hideFlowchartDialog();
+    showLoading();
+    try {
+        const response = await fetch('/api/flowcharts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, title: title || undefined })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to create flowchart');
+        }
+        const diagram = await response.json();
+        if (!diagram || !diagram.id) throw new Error('Invalid response: flowchart not saved');
+        currentFlowchartId = diagram.id;
+        currentMindMapId = null;
+        currentSequenceDiagramId = null;
+        displayFlowchart(diagram);
+        hideLoading();
+        await loadFlowcharts();
+        renderFlowchartList();
+        loadMindMaps();
+        loadSequenceDiagrams();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+// Load flowchart by id
+async function loadFlowchart(id) {
+    showLoading();
+    currentFlowchartId = id;
+    currentMindMapId = null;
+    currentSequenceDiagramId = null;
+    try {
+        const response = await fetch(`/api/flowcharts/${id}`);
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to load flowchart');
+        }
+        const diagram = await response.json();
+        displayFlowchart(diagram);
+        renderFlowchartList();
+        renderMindMapList();
+        renderSequenceDiagramList();
+        showUpdatePromptSection();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+// Force flowchart to be top-down and ensure valid first line
+function sanitizeFlowchartSyntax(syntax) {
+    if (!syntax || typeof syntax !== 'string') return syntax;
+    var s = syntax.trim();
+    if (s.toLowerCase().startsWith('flowchart lr')) {
+        s = 'flowchart TD' + s.substring(12);
+    } else if (!s.toLowerCase().startsWith('flowchart')) {
+        s = 'flowchart TD\n' + s;
+    } else if (!/^flowchart\s+td\b/i.test(s)) {
+        s = s.replace(/^flowchart\s+\w+/i, 'flowchart TD');
+    }
+    return s;
+}
+
+// Current flowchart diagram (for notes); set when displaying a flowchart
+let currentFlowchartDiagram = null;
+
+// Display flowchart in main area (Mermaid) with left/right notes columns
+async function displayFlowchart(diagram) {
+    const container = document.getElementById('mindmap-container');
+    if (!container) return;
+    let mermaidSyntax = diagram.mermaid_syntax || diagram.mermaidSyntax;
+    if (!mermaidSyntax) {
+        container.innerHTML = '<p class="error">No flowchart data</p>';
+        hideLoading();
+        return;
+    }
+    currentFlowchartDiagram = diagram;
+    mermaidSyntax = sanitizeFlowchartSyntax(mermaidSyntax);
+    var styleClass = currentSeqDiagramStyle === 'bw' ? 'seq-bw' : 'seq-colorful';
+    var paletteClass = (currentSeqDiagramStyle === 'bw') ? '' : (' seq-palette-' + (currentPalette || 'professional'));
+    var notes = diagram.notes || [];
+    container.innerHTML =
+        '<div class="flowchart-page">' +
+        '  <div class="flowchart-notes-col flowchart-notes-left">' +
+        '    <div class="flowchart-notes-header">Notes (left)</div>' +
+        '    <div class="flowchart-notes-list" data-side="left"></div>' +
+        '    <button type="button" class="btn-add-flowchart-note" data-side="left">+ Add note</button>' +
+        '  </div>' +
+        '  <div class="flowchart-center">' +
+        '    <div id="flowchart-wrap" class="sequence-diagram-wrap flowchart-wrap ' + styleClass + paletteClass + '"></div>' +
+        '  </div>' +
+        '  <div class="flowchart-notes-col flowchart-notes-right">' +
+        '    <div class="flowchart-notes-header">Notes (right)</div>' +
+        '    <div class="flowchart-notes-list" data-side="right"></div>' +
+        '    <button type="button" class="btn-add-flowchart-note" data-side="right">+ Add note</button>' +
+        '  </div>' +
+        '</div>';
+    renderFlowchartNotesPanels(notes);
+    bindFlowchartNotesEvents();
+    const wrap = document.getElementById('flowchart-wrap');
+    const uniqueId = 'mermaid-flow-' + Date.now();
+    try {
+        if (typeof window.mermaid === 'undefined') {
+            wrap.innerHTML = '<p class="error">Mermaid not loaded. Refresh the page.</p>';
+            hideLoading();
+            return;
+        }
+        if (window.mermaid && window.mermaid.initialize) {
+            try {
+                window.mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    flowchart: {
+                        htmlLabels: true,
+                        useMaxWidth: false,
+                        padding: 20,
+                        nodeSpacing: 22,
+                        rankSpacing: 26,
+                        curve: 'basis'
+                    }
+                });
+            } catch (initErr) {
+                console.warn('Flowchart mermaid.initialize fallback:', initErr);
+                window.mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    flowchart: { htmlLabels: true, useMaxWidth: false }
+                });
+            }
+        }
+        const { svg } = await window.mermaid.render(uniqueId, mermaidSyntax);
+        wrap.innerHTML = svg;
+        attachFlowchartZoom();
+        showBackButton();
+        hideLoading();
+    } catch (err) {
+        const errMsg = (err && (err.message || err.str || String(err))) || 'Unknown error';
+        console.error('Mermaid flowchart render error:', err);
+        wrap.innerHTML = '<p class="error">Could not render flowchart.</p><p class="error-detail">' + escapeHtml(errMsg) + '</p><pre class="mermaid-source">' + escapeHtml(mermaidSyntax) + '</pre>';
+        hideLoading();
+    }
+}
+
+function attachFlowchartZoom() {
+    var wrap = document.getElementById('flowchart-wrap');
+    var d3lib = typeof d3 !== 'undefined' ? d3 : (typeof window.d3 !== 'undefined' ? window.d3 : null);
+    if (!wrap || !d3lib) return;
+    var svgEl = wrap.querySelector('svg');
+    if (!svgEl) return;
+    try {
+        var svg = d3lib.select(svgEl);
+        var inner = svg.select('g');
+        if (inner.empty()) inner = svg;
+        var zoom = d3lib.zoom().scaleExtent([0.15, 5]).on('zoom', function(ev) {
+            inner.attr('transform', ev.transform);
+        });
+        svg.call(zoom);
+        window.d3ZoomIn = function() { svg.transition().duration(250).call(zoom.scaleBy, 1.3); };
+        window.d3ZoomOut = function() { svg.transition().duration(250).call(zoom.scaleBy, 0.7); };
+        window.d3ResetZoom = function() { svg.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity); };
+    } catch (e) {
+        console.warn('Flowchart zoom init failed:', e);
+    }
+}
+
+function showBackButton() {
+    var btn = document.getElementById('back-to-welcome-btn');
+    if (btn) btn.style.display = 'inline-block';
+}
+
+function hideBackButton() {
+    var btn = document.getElementById('back-to-welcome-btn');
+    if (btn) btn.style.display = 'none';
+}
+
+function goBackToWelcome() {
+    currentMindMapId = null;
+    currentSequenceDiagramId = null;
+    currentFlowchartId = null;
+    currentFlowchartDiagram = null;
+    window.d3ZoomIn = null;
+    window.d3ZoomOut = null;
+    window.d3ResetZoom = null;
+    hideUpdatePromptSection();
+    showWelcome();
+    hideBackButton();
+    renderMindMapList();
+    renderSequenceDiagramList();
+    renderFlowchartList();
+}
+
+function renderFlowchartNotesPanels(notes) {
+    var leftList = document.querySelector('.flowchart-notes-list[data-side="left"]');
+    var rightList = document.querySelector('.flowchart-notes-list[data-side="right"]');
+    if (!leftList || !rightList) return;
+    var leftNotes = (notes || []).filter(function(n) { return (n.side || 'left') === 'left'; });
+    var rightNotes = (notes || []).filter(function(n) { return (n.side || 'right') === 'right'; });
+    leftList.innerHTML = leftNotes.map(function(n) { return flowchartNoteCardHtml(n); }).join('');
+    rightList.innerHTML = rightNotes.map(function(n) { return flowchartNoteCardHtml(n); }).join('');
+}
+
+function flowchartNoteCardHtml(note) {
+    var id = (note.id || '').replace(/"/g, '&quot;');
+    var content = escapeHtml((note.content || '').trim());
+    return '<div class="flowchart-note-card" data-note-id="' + id + '">' +
+        '<div class="flowchart-note-content" data-note-id="' + id + '">' + (content || '<em>Empty note</em>') + '</div>' +
+        '<div class="flowchart-note-actions">' +
+        '<button type="button" class="flowchart-note-btn flowchart-note-edit" title="Edit">✎</button>' +
+        '<button type="button" class="flowchart-note-btn flowchart-note-delete" title="Delete">🗑</button>' +
+        '</div></div>';
+}
+
+function bindFlowchartNotesEvents() {
+    var diagramId = currentFlowchartId;
+    if (!diagramId) return;
+    document.querySelectorAll('.btn-add-flowchart-note').forEach(function(btn) {
+        btn.onclick = function() {
+            var side = btn.getAttribute('data-side') || 'left';
+            addFlowchartNote(side);
+        };
+    });
+    document.querySelectorAll('.flowchart-note-edit').forEach(function(btn) {
+        btn.onclick = function() {
+            var card = btn.closest('.flowchart-note-card');
+            var noteId = card ? card.getAttribute('data-note-id') : null;
+            if (noteId) editFlowchartNote(noteId);
+        };
+    });
+    document.querySelectorAll('.flowchart-note-delete').forEach(function(btn) {
+        btn.onclick = function() {
+            var card = btn.closest('.flowchart-note-card');
+            var noteId = card ? card.getAttribute('data-note-id') : null;
+            if (noteId && confirm('Delete this note?')) deleteFlowchartNote(noteId);
+        };
+    });
+}
+
+function addFlowchartNote(side) {
+    var diagramId = currentFlowchartId;
+    if (!diagramId) return;
+    var content = prompt('Note text (sticky ' + side + '):');
+    if (content === null) return;
+    content = (content || '').trim();
+    if (!content) {
+        alert('Enter some text for the note.');
+        return;
+    }
+    fetch('/api/flowcharts/' + encodeURIComponent(diagramId) + '/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content, side: side })
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(j) { throw new Error(j.error || 'Failed to add note'); });
+        return r.json();
+    }).then(function() {
+        return fetch('/api/flowcharts/' + encodeURIComponent(diagramId));
+    }).then(function(r) {
+        if (!r.ok) throw new Error('Failed to reload flowchart');
+        return r.json();
+    }).then(function(diagram) {
+        currentFlowchartDiagram = diagram;
+        renderFlowchartNotesPanels(diagram.notes || []);
+        bindFlowchartNotesEvents();
+    }).catch(function(e) {
+        alert('Error: ' + (e.message || e));
+    });
+}
+
+function editFlowchartNote(noteId) {
+    var diagramId = currentFlowchartId;
+    if (!diagramId) return;
+    var card = document.querySelector('.flowchart-note-card[data-note-id="' + noteId.replace(/"/g, '\\"') + '"]');
+    if (!card) return;
+    var contentEl = card.querySelector('.flowchart-note-content');
+    var note = (currentFlowchartDiagram && currentFlowchartDiagram.notes) ? currentFlowchartDiagram.notes.find(function(n) { return n.id === noteId; }) : null;
+    var currentContent = note ? (note.content || '') : (contentEl ? contentEl.textContent : '');
+    var newContent = prompt('Edit note:', currentContent);
+    if (newContent === null) return;
+    newContent = (newContent || '').trim();
+    fetch('/api/flowcharts/' + encodeURIComponent(diagramId) + '/notes/' + encodeURIComponent(noteId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent })
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(j) { throw new Error(j.error || 'Failed to update note'); });
+        return r.json();
+    }).then(function() {
+        return fetch('/api/flowcharts/' + encodeURIComponent(diagramId));
+    }).then(function(r) {
+        if (!r.ok) throw new Error('Failed to reload flowchart');
+        return r.json();
+    }).then(function(diagram) {
+        currentFlowchartDiagram = diagram;
+        renderFlowchartNotesPanels(diagram.notes || []);
+        bindFlowchartNotesEvents();
+    }).catch(function(e) {
+        alert('Error: ' + (e.message || e));
+    });
+}
+
+function deleteFlowchartNote(noteId) {
+    var diagramId = currentFlowchartId;
+    if (!diagramId) return;
+    fetch('/api/flowcharts/' + encodeURIComponent(diagramId) + '/notes/' + encodeURIComponent(noteId), {
+        method: 'DELETE'
+    }).then(function(r) {
+        if (!r.ok) return r.json().then(function(j) { throw new Error(j.error || 'Failed to delete note'); });
+        return fetch('/api/flowcharts/' + encodeURIComponent(diagramId));
+    }).then(function(r) {
+        if (!r.ok) throw new Error('Failed to reload flowchart');
+        return r.json();
+    }).then(function(diagram) {
+        currentFlowchartDiagram = diagram;
+        renderFlowchartNotesPanels(diagram.notes || []);
+        bindFlowchartNotesEvents();
+    }).catch(function(e) {
+        alert('Error: ' + (e.message || e));
+    });
 }
 
 // Create new mind map
@@ -193,6 +1053,8 @@ async function createMindMap() {
 async function loadMindMap(id) {
     showLoading();
     currentMindMapId = id;
+    currentSequenceDiagramId = null;
+    currentFlowchartId = null;
     
     try {
         const response = await fetch(`/api/mindmaps/${id}?palette=${currentPalette}&fontFamily=${encodeURIComponent(currentFontFamily)}`);
@@ -225,6 +1087,9 @@ async function loadMindMap(id) {
         
         displayMindMap(mindmap.data);
         renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+        showUpdatePromptSection();
     } catch (error) {
         console.error('Error loading mind map:', error);
         console.error('Mind map ID:', id);
@@ -248,7 +1113,7 @@ async function loadMindMap(id) {
 function displayMindMap(data) {
     const container = document.getElementById('mindmap-container');
     container.innerHTML = '<div id="mindmap"></div>';
-    
+    showBackButton();
     // Always render with D3.js
     if (data.type === 'd3' || data.data) {
         renderD3MindMap(data.data || data, container.querySelector('#mindmap'));
@@ -1116,6 +1981,12 @@ async function changePalette(palette) {
         if (currentMindMapId) {
             await loadMindMap(currentMindMapId);
         }
+        if (currentSequenceDiagramId) {
+            await loadSequenceDiagram(currentSequenceDiagramId);
+        }
+        if (currentFlowchartId) {
+            await loadFlowchart(currentFlowchartId);
+        }
     } catch (error) {
         console.error('Error changing palette:', error);
         alert('Error changing color palette: ' + error.message);
@@ -1199,33 +2070,6 @@ function toggleSidebar(side) {
     }
 }
 
-// Delete mind map
-async function deleteMindMap(id) {
-    if (!confirm('Are you sure you want to delete this mind map?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/mindmaps/${id}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            if (currentMindMapId === id) {
-                currentMindMapId = null;
-                document.getElementById('mindmap-container').innerHTML = `
-                    <div class="welcome-message">
-                        <h2>👋 Welcome!</h2>
-                        <p>Click "New Mind Map" to get started</p>
-                    </div>
-                `;
-            }
-            loadMindMaps();
-        }
-    } catch (error) {
-        alert('Error deleting mind map: ' + error.message);
-    }
-}
 
 // Change renderer
 function changeRenderer(renderer) {
@@ -1241,6 +2085,12 @@ async function changeFont(fontFamily) {
         currentFontFamily = fontFamily;
         if (currentMindMapId) {
             await loadMindMap(currentMindMapId);
+        }
+        if (currentSequenceDiagramId) {
+            await loadSequenceDiagram(currentSequenceDiagramId);
+        }
+        if (currentFlowchartId) {
+            await loadFlowchart(currentFlowchartId);
         }
     } catch (error) {
         console.error('Error changing font:', error);

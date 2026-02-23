@@ -25,11 +25,32 @@ body {
 
 /* Header */
 .header {
+    position: relative;
     text-align: center;
     padding: 15px 20px;
     background: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     flex-shrink: 0;
+}
+
+.back-to-welcome-btn {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 14px;
+    font-size: 14px;
+    color: #4a4a4a;
+    background: #f0ede8;
+    border: 1px solid #e0ddd8;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.back-to-welcome-btn:hover {
+    background: #e0ddd8;
+    color: #333;
 }
 
 .header h1 {
@@ -87,6 +108,37 @@ body {
     padding: 20px;
     overflow-y: auto;
     height: 100%;
+}
+
+/* Left sidebar: 50/50 split for Saved Mind Maps and Saved Sequence Diagrams */
+.sidebar-left-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.sidebar-left-content .sidebar-section-create {
+    flex-shrink: 0;
+}
+
+.sidebar-left-content .sidebar-section-third {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-left-content .sidebar-section-third h2 {
+    flex-shrink: 0;
+    margin-bottom: 10px;
+}
+
+.sidebar-left-content .mindmap-list-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: none;
 }
 
 .sidebar.collapsed .sidebar-content {
@@ -203,6 +255,19 @@ body {
     background: #d4c5b9;
 }
 
+.btn-outline {
+    background: transparent;
+    color: #6a6a6a;
+    border: 1px solid #c4b8a8;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.btn-outline:hover {
+    background: #f0ebe5;
+    border-color: #9b8a7a;
+}
+
 /* Style Options */
 .style-options {
     display: flex;
@@ -271,7 +336,7 @@ body {
 .mindmap-list {
     max-height: calc(100vh - 300px);
     overflow-y: auto;
-    min-height: 200px;
+    min-height: 120px;
 }
 
 .mindmap-item {
@@ -297,15 +362,63 @@ body {
     font-weight: 500;
 }
 
+.mindmap-item-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
 .mindmap-item-title {
     font-weight: 500;
     color: #4a4a4a;
-    margin-bottom: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.mindmap-item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.item-btn {
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1em;
+    opacity: 0.7;
+}
+
+.item-btn:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.08);
+}
+
+.item-btn.rename-btn { font-size: 0.95em; }
+.item-btn.delete-btn { font-size: 0.9em; }
+
+.item-rename-input {
+    width: 100%;
+    padding: 4px 8px;
+    font-size: inherit;
+    border: 1px solid #a89b8c;
+    border-radius: 4px;
+    box-sizing: border-box;
 }
 
 .mindmap-item-date {
     font-size: 0.85em;
     color: #8a8a8a;
+}
+
+.sidebar-hint {
+    font-size: 0.85em;
+    color: #8a8a8a;
+    margin: 0 0 10px 0;
 }
 
 .empty-state {
@@ -346,6 +459,414 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.sequence-diagram-wrap {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    padding: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.sequence-diagram-wrap svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Flowchart page: 3 columns — notes left, diagram center, notes right */
+.flowchart-page {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.flowchart-notes-col {
+    flex: 0 0 220px;
+    min-width: 180px;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+    background: #f8f6f4;
+    border-right: 1px solid #e8e5e0;
+    overflow: hidden;
+}
+
+.flowchart-notes-right {
+    border-right: none;
+    border-left: 1px solid #e8e5e0;
+}
+
+.flowchart-notes-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6a6a6a;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.flowchart-notes-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.flowchart-note-card {
+    background: #fff;
+    border: 1px solid #e0ddd8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.flowchart-note-content {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #4a4a4a;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.flowchart-note-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.flowchart-note-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+    opacity: 0.7;
+    border-radius: 4px;
+}
+
+.flowchart-note-btn:hover {
+    opacity: 1;
+    background: #eee;
+}
+
+.btn-add-flowchart-note {
+    margin-top: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    background: #e8e5e0;
+    border: 1px solid #d4c5b9;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #4a4a4a;
+}
+
+.btn-add-flowchart-note:hover {
+    background: #d4c5b9;
+    color: #333;
+}
+
+.flowchart-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Flowchart: start at top, centered horizontally; scrollable; compact size */
+.flowchart-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    padding: 24px;
+    min-height: 0;
+}
+
+.flowchart-wrap svg {
+    max-width: none;
+    width: auto;
+    height: auto;
+    flex: 0 0 auto;
+    display: block;
+    transform: scale(0.62);
+    transform-origin: top center;
+}
+
+/* Prettier flowchart nodes: soft edges, slight depth */
+.flowchart-wrap svg .node rect,
+.flowchart-wrap svg .node circle,
+.flowchart-wrap svg .node polygon,
+.flowchart-wrap svg .cluster rect {
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    stroke-width: 1.5 !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
+}
+
+/* Prettier flowchart arrows: smooth, rounded */
+.flowchart-wrap svg .edgePath path {
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    stroke-width: 2 !important;
+    fill: none !important;
+}
+
+.flowchart-wrap svg .marker {
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+/* Label text: smaller font; no extra padding so text stays inside box (Mermaid sets fixed box height) */
+.flowchart-wrap svg .label text {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+}
+
+.flowchart-wrap svg .node .label {
+    overflow: hidden;
+}
+
+.flowchart-wrap svg .node foreignObject {
+    overflow: hidden;
+}
+
+/* No padding/margin so content height doesn't exceed Mermaid's box; content stays inside */
+.flowchart-wrap svg .node foreignObject body,
+.flowchart-wrap svg .node foreignObject span {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-sizing: border-box;
+    overflow: hidden;
+    line-height: 1.25;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Sequence diagram style: Colorful (default / professional) */
+.sequence-diagram-wrap.seq-colorful svg .actor,
+.sequence-diagram-wrap.seq-colorful svg .actor-top,
+.sequence-diagram-wrap.seq-colorful svg .actor-bottom {
+    fill: #e3f2fd !important;
+    stroke: #1976d2 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .actor-line {
+    stroke: #90caf9 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .note,
+.sequence-diagram-wrap.seq-colorful svg .note-over {
+    fill: #fff8e1 !important;
+    stroke: #ffa726 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .messageLine0 {
+    stroke: #1565c0 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .messageLine1 {
+    stroke: #5e35b1 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .messageText {
+    fill: #1a237e !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .labelBox {
+    fill: #e8eaf6 !important;
+    stroke: #3f51b5 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg .loopLine {
+    stroke: #7e57c2 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg text.actor {
+    fill: #0d47a1 !important;
+}
+
+.sequence-diagram-wrap.seq-colorful svg text.noteText,
+.sequence-diagram-wrap.seq-colorful svg .noteText {
+    fill: #e65100 !important;
+}
+
+/* Sequence diagram: Palette = Vibrant (pink / light blue) */
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .actor,
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .actor-top,
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .actor-bottom { fill: #fce4ec !important; stroke: #c2185b !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .actor-line { stroke: #f8bbd9 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .note,
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .note-over { fill: #e1f5fe !important; stroke: #0288d1 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .messageLine0 { stroke: #ad1457 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .messageLine1 { stroke: #0277bd !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .messageText { fill: #4a148c !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .labelBox { fill: #e8eaf6 !important; stroke: #7c4dff !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .loopLine { stroke: #7c4dff !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg text.actor { fill: #880e4f !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg text.noteText,
+.sequence-diagram-wrap.seq-colorful.seq-palette-vibrant svg .noteText { fill: #01579b !important; }
+
+/* Sequence diagram: Palette = Corporate (blue-gray) */
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .actor,
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .actor-top,
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .actor-bottom { fill: #e3f2fd !important; stroke: #455a64 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .actor-line { stroke: #90a4ae !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .note,
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .note-over { fill: #e0f2f1 !important; stroke: #00897b !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .messageLine0 { stroke: #37474f !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .messageLine1 { stroke: #00695c !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .messageText { fill: #263238 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .labelBox { fill: #eceff1 !important; stroke: #546e7a !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .loopLine { stroke: #546e7a !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg text.actor { fill: #37474f !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg text.noteText,
+.sequence-diagram-wrap.seq-colorful.seq-palette-corporate svg .noteText { fill: #004d40 !important; }
+
+/* Sequence diagram: Palette = Modern (purple / teal) */
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .actor,
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .actor-top,
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .actor-bottom { fill: #f3e5f5 !important; stroke: #7b1fa2 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .actor-line { stroke: #ce93d8 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .note,
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .note-over { fill: #e0f7fa !important; stroke: #0097a7 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .messageLine0 { stroke: #6a1b9a !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .messageLine1 { stroke: #00838f !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .messageText { fill: #4a148c !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .labelBox { fill: #ede7f6 !important; stroke: #5e35b1 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .loopLine { stroke: #5e35b1 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg text.actor { fill: #4a148c !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg text.noteText,
+.sequence-diagram-wrap.seq-colorful.seq-palette-modern svg .noteText { fill: #006064 !important; }
+
+/* Sequence diagram: Palette = Neutral (beige / warm gray) */
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .actor,
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .actor-top,
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .actor-bottom { fill: #faf6f0 !important; stroke: #8d6e63 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .actor-line { stroke: #bcaaa4 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .note,
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .note-over { fill: #efebe9 !important; stroke: #a1887f !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .messageLine0 { stroke: #5d4037 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .messageLine1 { stroke: #6d4c41 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .messageText { fill: #3e2723 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .labelBox { fill: #f5f5f5 !important; stroke: #795548 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .loopLine { stroke: #795548 !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg text.actor { fill: #4e342e !important; }
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg text.noteText,
+.sequence-diagram-wrap.seq-colorful.seq-palette-neutral svg .noteText { fill: #5d4037 !important; }
+
+/* Sequence diagram style: Black & white */
+.sequence-diagram-wrap.seq-bw svg .actor,
+.sequence-diagram-wrap.seq-bw svg .actor-top,
+.sequence-diagram-wrap.seq-bw svg .actor-bottom,
+.sequence-diagram-wrap.seq-bw svg .labelBox {
+    fill: #f5f5f5 !important;
+    stroke: #212121 !important;
+}
+
+.sequence-diagram-wrap.seq-bw svg .actor-line {
+    stroke: #9e9e9e !important;
+}
+
+.sequence-diagram-wrap.seq-bw svg .note,
+.sequence-diagram-wrap.seq-bw svg .note-over {
+    fill: #eeeeee !important;
+    stroke: #424242 !important;
+}
+
+.sequence-diagram-wrap.seq-bw svg .messageLine0,
+.sequence-diagram-wrap.seq-bw svg .messageLine1,
+.sequence-diagram-wrap.seq-bw svg .loopLine {
+    stroke: #212121 !important;
+}
+
+.sequence-diagram-wrap.seq-bw svg .messageText,
+.sequence-diagram-wrap.seq-bw svg text.actor,
+.sequence-diagram-wrap.seq-bw svg text.noteText,
+.sequence-diagram-wrap.seq-bw svg .noteText,
+.sequence-diagram-wrap.seq-bw svg .loopText {
+    fill: #212121 !important;
+}
+
+/* Flowchart: apply same palette and bw styles to Mermaid flowchart SVG */
+.flowchart-wrap.seq-colorful svg .node rect,
+.flowchart-wrap.seq-colorful svg .node circle,
+.flowchart-wrap.seq-colorful svg .cluster rect { fill: #e3f2fd !important; stroke: #1976d2 !important; }
+.flowchart-wrap.seq-colorful svg .edgePath path { stroke: #1565c0 !important; }
+.flowchart-wrap.seq-colorful svg .label text { fill: #1a237e !important; }
+.flowchart-wrap.seq-colorful.seq-palette-vibrant svg .node rect,
+.flowchart-wrap.seq-colorful.seq-palette-vibrant svg .node circle,
+.flowchart-wrap.seq-colorful.seq-palette-vibrant svg .cluster rect { fill: #fce4ec !important; stroke: #c2185b !important; }
+.flowchart-wrap.seq-colorful.seq-palette-vibrant svg .edgePath path { stroke: #ad1457 !important; }
+.flowchart-wrap.seq-colorful.seq-palette-corporate svg .node rect,
+.flowchart-wrap.seq-colorful.seq-palette-corporate svg .node circle,
+.flowchart-wrap.seq-colorful.seq-palette-corporate svg .cluster rect { fill: #e3f2fd !important; stroke: #455a64 !important; }
+.flowchart-wrap.seq-colorful.seq-palette-corporate svg .edgePath path { stroke: #37474f !important; }
+.flowchart-wrap.seq-colorful.seq-palette-modern svg .node rect,
+.flowchart-wrap.seq-colorful.seq-palette-modern svg .node circle,
+.flowchart-wrap.seq-colorful.seq-palette-modern svg .cluster rect { fill: #f3e5f5 !important; stroke: #7b1fa2 !important; }
+.flowchart-wrap.seq-colorful.seq-palette-modern svg .edgePath path { stroke: #6a1b9a !important; }
+.flowchart-wrap.seq-colorful.seq-palette-neutral svg .node rect,
+.flowchart-wrap.seq-colorful.seq-palette-neutral svg .node circle,
+.flowchart-wrap.seq-colorful.seq-palette-neutral svg .cluster rect { fill: #faf6f0 !important; stroke: #8d6e63 !important; }
+.flowchart-wrap.seq-colorful.seq-palette-neutral svg .edgePath path { stroke: #5d4037 !important; }
+.flowchart-wrap.seq-bw svg .node rect,
+.flowchart-wrap.seq-bw svg .node circle,
+.flowchart-wrap.seq-bw svg .cluster rect { fill: #f5f5f5 !important; stroke: #212121 !important; }
+.flowchart-wrap.seq-bw svg .edgePath path { stroke: #212121 !important; }
+.flowchart-wrap.seq-bw svg .label text { fill: #212121 !important; }
+
+.seq-style-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.seq-style-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.seq-style-label input {
+    margin: 0;
+}
+
+.mindmap-container .error {
+    color: #a66;
+    padding: 1em;
+}
+
+.mindmap-container .error-detail {
+    font-size: 0.9em;
+    color: #844;
+    padding: 0 1em 0.5em;
+    word-break: break-word;
+}
+
+.mindmap-container .mermaid-source {
+    white-space: pre-wrap;
+    font-size: 0.85em;
+    max-height: 300px;
+    overflow: auto;
+    background: #f5f5f5;
+    padding: 1em;
+    border-radius: 6px;
 }
 
 .node {

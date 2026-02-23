@@ -11,8 +11,9 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>🗺️ AI Mind Map Generator</h1>
-            <p class="subtitle">Create beautiful mind maps from text using AI</p>
+            <button type="button" id="back-to-welcome-btn" class="back-to-welcome-btn" style="display: none;" onclick="goBackToWelcome()" title="Back to home">← Back</button>
+            <h1>🗺️ AI Mind Map &amp; Diagrams</h1>
+            <p class="subtitle">Create mind maps, sequence diagrams, and flowcharts from text using AI</p>
         </header>
 
         <!-- Main Content - Full Screen Layout -->
@@ -22,18 +23,38 @@
                 <button class="sidebar-toggle sidebar-toggle-left" onclick="toggleSidebar('left')" title="Toggle sidebar">
                     <span id="left-toggle-icon">◀</span>
                 </button>
-                <div class="sidebar-content">
-                    <div class="sidebar-section">
+                <div class="sidebar-content sidebar-left-content">
+                    <div class="sidebar-section sidebar-section-create">
                         <h2>Create New</h2>
                         <button class="btn btn-primary" onclick="showCreateDialog()">
                             ➕ New Mind Map
                         </button>
+                        <button class="btn btn-outline" onclick="showSequenceDiagramDialog()">
+                            📊 New Sequence Diagram
+                        </button>
+                        <button class="btn btn-outline" onclick="showFlowchartDialog()">
+                            📋 New Flowchart
+                        </button>
                     </div>
 
-                    <div class="sidebar-section">
+                    <div class="sidebar-section sidebar-section-third">
                         <h2>Saved Mind Maps</h2>
-                        <div id="mindmap-list" class="mindmap-list">
+                        <div id="mindmap-list" class="mindmap-list mindmap-list-scroll">
                             <p class="empty-state">No mind maps yet</p>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section sidebar-section-third">
+                        <h2>Saved Sequence Diagrams</h2>
+                        <div id="sequence-diagram-list" class="mindmap-list mindmap-list-scroll">
+                            <p class="empty-state">No sequence diagrams yet</p>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section sidebar-section-third">
+                        <h2>Saved Flowcharts</h2>
+                        <div id="flowchart-list" class="mindmap-list mindmap-list-scroll">
+                            <p class="empty-state">No flowcharts yet</p>
                         </div>
                     </div>
                 </div>
@@ -98,6 +119,30 @@
                     </div>
                     
                     <div class="sidebar-section">
+                        <h2>Sequence diagram style</h2>
+                        <p class="sidebar-hint">Applies when a sequence diagram is shown.</p>
+                        <div class="seq-style-options">
+                            <label class="seq-style-label">
+                                <input type="radio" name="seq-style" value="colorful" checked onchange="changeSeqDiagramStyle('colorful')">
+                                <span>Colorful</span>
+                            </label>
+                            <label class="seq-style-label">
+                                <input type="radio" name="seq-style" value="bw" onchange="changeSeqDiagramStyle('bw')">
+                                <span>Black &amp; white</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section" id="update-prompt-section" style="display: none;">
+                        <h2>Update with prompt</h2>
+                        <p class="sidebar-hint">Change the current diagram or mind map by describing what to add or change.</p>
+                        <div class="form-group">
+                            <textarea id="update-prompt-input" rows="3" placeholder="e.g. Add a step where Server validates the token"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="updateWithPrompt()">Update</button>
+                    </div>
+
+                    <div class="sidebar-section">
                         <h2>Zoom Controls</h2>
                         <div class="zoom-controls">
                             <button class="btn btn-secondary" onclick="zoomIn()">🔍 Zoom In</button>
@@ -134,17 +179,65 @@
         </div>
     </div>
 
+    <!-- Sequence Diagram Create Dialog -->
+    <div id="sequence-diagram-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2>Create Sequence Diagram</h2>
+                <button class="close-btn" onclick="hideSequenceDiagramDialog()">×</button>
+            </div>
+            <div class="dialog-body">
+                <div class="form-group">
+                    <label for="seq-title">Title (optional):</label>
+                    <input type="text" id="seq-title" placeholder="e.g. Login flow">
+                </div>
+                <div class="form-group">
+                    <label for="seq-text">Describe the flow (e.g. who does what, in order):</label>
+                    <textarea id="seq-text" rows="10" placeholder="e.g. User opens the app. Browser sends login request to Server. Server checks Database. Database returns user. Server sends token to Browser. Browser shows dashboard."></textarea>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-secondary" onclick="hideSequenceDiagramDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="createSequenceDiagram()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flowchart Create Dialog -->
+    <div id="flowchart-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2>Create Flowchart</h2>
+                <button class="close-btn" onclick="hideFlowchartDialog()">×</button>
+            </div>
+            <div class="dialog-body">
+                <div class="form-group">
+                    <label for="flowchart-title">Title (optional):</label>
+                    <input type="text" id="flowchart-title" placeholder="e.g. Login process">
+                </div>
+                <div class="form-group">
+                    <label for="flowchart-text">Describe the process or flow:</label>
+                    <textarea id="flowchart-text" rows="10" placeholder="e.g. User enters credentials. System validates. If valid, redirect to dashboard. If invalid, show error and allow retry."></textarea>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-secondary" onclick="hideFlowchartDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="createFlowchart()">Create</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ 
-            startOnLoad: true, 
+        mermaid.initialize({
+            startOnLoad: false,
             theme: 'default',
             securityLevel: 'loose'
         });
         window.mermaid = mermaid;
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
 
