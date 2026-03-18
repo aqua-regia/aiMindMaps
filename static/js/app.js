@@ -659,6 +659,7 @@ async function displaySequenceDiagram(diagram) {
         }
         const { svg } = await window.mermaid.render(uniqueId, mermaidSyntax);
         wrap.innerHTML = svg;
+        attachSequenceDiagramZoom();
         showBackButton();
         hideLoading();
     } catch (err) {
@@ -830,6 +831,52 @@ async function displayFlowchart(diagram) {
     }
 }
 
+function attachSequenceDiagramZoom() {
+    var wrap = document.getElementById('seq-diagram-wrap');
+    var d3lib = typeof d3 !== 'undefined' ? d3 : (typeof window.d3 !== 'undefined' ? window.d3 : null);
+    if (!wrap || !d3lib) return;
+    var svgEl = wrap.querySelector('svg');
+    if (!svgEl) return;
+    try {
+        var baseW = parseFloat(svgEl.getAttribute('width'));
+        var baseH = parseFloat(svgEl.getAttribute('height'));
+        if (!(baseW > 0) || !(baseH > 0)) {
+            try { var b = svgEl.getBBox(); baseW = b.width; baseH = b.height; } catch (e) { baseW = 800; baseH = 600; }
+        }
+        var svg = d3lib.select(svgEl);
+        // Mermaid sequence diagrams have multiple top-level <g> elements; wrap ALL
+        // content in a single group so zoom transforms the entire diagram.
+        var zoomGroup = svg.insert('g', '*').attr('class', 'seq-zoom-group');
+        var nodesToMove = [];
+        for (var i = 0; i < svgEl.childNodes.length; i++) {
+            var n = svgEl.childNodes[i];
+            if (n !== zoomGroup.node()) nodesToMove.push(n);
+        }
+        for (var j = 0; j < nodesToMove.length; j++) zoomGroup.node().appendChild(nodesToMove[j]);
+        var zoom = d3lib.zoom().scaleExtent([0.2, 5]).on('zoom', function(ev) {
+            zoomGroup.attr('transform', ev.transform);
+            var k = ev.transform.k;
+            var tx = ev.transform.x;
+            var ty = ev.transform.y;
+            // Grow SVG so panned/zoomed content is not clipped (extra padding for drag room)
+            var pad = 400;
+            svgEl.setAttribute('width', Math.max(baseW * k + 2 * Math.abs(tx) + pad, baseW));
+            svgEl.setAttribute('height', Math.max(baseH * k + 2 * Math.abs(ty) + pad, baseH));
+        });
+        svg.call(zoom);
+        svgEl.style.overflow = 'visible';
+        window.d3ZoomIn = function() { svg.transition().duration(250).call(zoom.scaleBy, 1.3); };
+        window.d3ZoomOut = function() { svg.transition().duration(250).call(zoom.scaleBy, 0.7); };
+        window.d3ResetZoom = function() {
+            svg.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity);
+            svgEl.setAttribute('width', baseW);
+            svgEl.setAttribute('height', baseH);
+        };
+    } catch (e) {
+        console.warn('Sequence diagram zoom init failed:', e);
+    }
+}
+
 function attachFlowchartZoom() {
     var wrap = document.getElementById('flowchart-wrap');
     var d3lib = typeof d3 !== 'undefined' ? d3 : (typeof window.d3 !== 'undefined' ? window.d3 : null);
@@ -837,16 +884,28 @@ function attachFlowchartZoom() {
     var svgEl = wrap.querySelector('svg');
     if (!svgEl) return;
     try {
+        var baseW = parseFloat(svgEl.getAttribute('width'));
+        var baseH = parseFloat(svgEl.getAttribute('height'));
+        if (!(baseW > 0)) { try { var b = svgEl.getBBox(); baseW = b.width; baseH = b.height; } catch (e) { baseW = 800; baseH = 600; } }
+        if (!(baseH > 0)) baseH = 600;
         var svg = d3lib.select(svgEl);
         var inner = svg.select('g');
         if (inner.empty()) inner = svg;
         var zoom = d3lib.zoom().scaleExtent([0.15, 5]).on('zoom', function(ev) {
             inner.attr('transform', ev.transform);
+            var k = ev.transform.k;
+            svgEl.setAttribute('width', Math.max(baseW * k, baseW * 0.5));
+            svgEl.setAttribute('height', Math.max(baseH * k, baseH * 0.5));
         });
         svg.call(zoom);
+        svgEl.style.overflow = 'visible';
         window.d3ZoomIn = function() { svg.transition().duration(250).call(zoom.scaleBy, 1.3); };
         window.d3ZoomOut = function() { svg.transition().duration(250).call(zoom.scaleBy, 0.7); };
-        window.d3ResetZoom = function() { svg.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity); };
+        window.d3ResetZoom = function() {
+            svg.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity);
+            svgEl.setAttribute('width', baseW);
+            svgEl.setAttribute('height', baseH);
+        };
     } catch (e) {
         console.warn('Flowchart zoom init failed:', e);
     }

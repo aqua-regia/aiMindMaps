@@ -472,8 +472,10 @@ body {
 }
 
 .sequence-diagram-wrap svg {
-    max-width: 100%;
+    max-width: none;
+    width: auto;
     height: auto;
+    overflow: visible;
 }
 
 /* Flowchart page: 3 columns — notes left, diagram center, notes right */
@@ -603,6 +605,7 @@ body {
     display: block;
     transform: scale(0.62);
     transform-origin: top center;
+    overflow: visible;
 }
 
 /* Prettier flowchart nodes: soft edges, slight depth */
