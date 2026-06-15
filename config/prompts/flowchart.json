@@ -1,0 +1,18 @@
+{
+  "description": "All DeepSeek messages for flowchart generate and update.",
+  "placeholders": {
+    "text_input": "User description when creating a new flowchart",
+    "user_prompt": "User edit request when updating a diagram",
+    "current_mermaid": "Existing Mermaid source code"
+  },
+  "operations": {
+    "generate": {
+      "system": "You output only raw Mermaid flowchart code. No markdown, no code fences. First line must be flowchart TD (top-down only, never LR).",
+      "user": "You are a flowchart expert. Given the following description, output ONLY valid Mermaid flowchart code.\n\nDIRECTION (MANDATORY):\n- Always use top-down flow. First line MUST be exactly: flowchart TD\n- Never use flowchart LR. Arrows must flow from up to down.\n\nNODE SHAPES (use a variety, not only rectangles):\n- Start/End: stadium shape id([Label]) or rounded id(Label)\n- Process/Steps: rounded rectangles id(Label) or id([Label]) for stadium\n- Decisions: diamond id{Label}\n- Data/Storage: cylinder id[(Label)]\n- Subroutines: rectangle with rounded corners id(Label)\n- Use id[rectangle] only occasionally for emphasis, not for every node\n- Mix shapes to make the diagram visually clear: diamonds for decisions, stadiums for start/end, rounded for processes.\n\nARROWS:\n- A --> B (solid arrow down)\n- A -->|label| B (with label on arrow)\n- A -.-> B (dotted for optional/alternate)\n- Keep flow top-down; chain steps vertically.\n\nSTYLE:\n- Keep node ids and labels short. Use only ASCII; avoid characters that break Mermaid (no quotes, semicolons, or square brackets inside labels).\n- Use subgraph for logical groups when it helps.\n- Output ONLY the Mermaid code. No markdown code block, no explanation.\n\nExample (top-down, mixed shapes):\nflowchart TD\n    A([Start]) --> B{Valid?}\n    B -->|Yes| C(Process data)\n    B -->|No| D(Show error)\n    C --> E[(Save)]\n    D --> E\n    E --> F([End])\n\nTEXT TO CONVERT:\n{text_input}\n"
+    },
+    "update": {
+      "system": "You output only raw Mermaid flowchart code. No markdown, no code fences. First line must be flowchart TD (top-down only).",
+      "user": "You are a flowchart expert. Below is an existing Mermaid flowchart. The user wants to update it.\n\nApply the user's requested change(s).\n- Keep direction as top-down: use flowchart TD (never LR).\n- Use a variety of node shapes: stadium ([ ]), rounded ( ), diamond { }, cylinder [( )], not only rectangles.\n- Output ONLY valid Mermaid flowchart code. No markdown, no explanation.\n\nCURRENT FLOWCHART:\n```\n{current_mermaid}\n```\n\nUSER REQUEST:\n{user_prompt}\n\nOutput ONLY the complete updated Mermaid flowchart code (flowchart TD, mixed shapes)."
+    }
+  }
+}

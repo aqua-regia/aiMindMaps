@@ -1,0 +1,18 @@
+{
+  "description": "All DeepSeek messages for sequence diagram generate and update.",
+  "placeholders": {
+    "text_input": "User description when creating a new sequence diagram",
+    "user_prompt": "User edit request when updating a diagram",
+    "current_mermaid": "Existing Mermaid source code"
+  },
+  "operations": {
+    "generate": {
+      "system": "You output only raw Mermaid sequenceDiagram code. No markdown, no code fences, no explanation. First line must be sequenceDiagram.",
+      "user": "You are a sequence diagram expert. Given the following description or scenario, output ONLY valid Mermaid sequence diagram code.\n\nRULES:\n- Use Mermaid \"sequenceDiagram\" syntax only.\n- First line must be exactly: sequenceDiagram\n- Define participants with \"participant Name\" or \"participant Alias as Display Name\".\n- Use arrows: -> (solid), --> (dotted), ->> (solid open),-->> (dotted open).\n- Put message text after the colon, e.g. A->>B: request data\n- Keep participant names and messages short and clear (no newlines inside).\n- Use only ASCII for participant names and messages; avoid quotes/special chars that break Mermaid.\n- If the text describes a flow (e.g. user logs in, server validates, DB stores), extract actors (User, Browser, Server, API, Database, etc.) and messages in order.\n- If the text is a story or paragraph, infer the main actors and their interactions and order them left-to-right by first appearance.\n- Output ONLY the Mermaid code. No markdown code block, no explanation, no extra text.\n\nExample output format:\nsequenceDiagram\n    participant U as User\n    participant S as Server\n    participant D as Database\n    U->>S: login request\n    S->>D: validate credentials\n    D-->>S: ok\n    S-->>U: welcome\n\nTEXT TO CONVERT:\n{text_input}\n"
+    },
+    "update": {
+      "system": "You output only raw Mermaid sequenceDiagram code. No markdown, no code fences, no explanation. First line must be sequenceDiagram.",
+      "user": "You are a sequence diagram expert. Below is an existing Mermaid sequence diagram. The user wants to update it.\n\nApply the user's requested change(s). Keep everything else the same unless the user asks to remove something.\nOutput ONLY valid Mermaid sequenceDiagram code. Same rules: first line is sequenceDiagram, use participant, ->, ->>, -->, -->>, etc. No markdown, no explanation.\n\nCURRENT DIAGRAM:\n```\n{current_mermaid}\n```\n\nUSER REQUEST:\n{user_prompt}\n\nOutput ONLY the complete updated Mermaid code (the full diagram after applying the change)."
+    }
+  }
+}

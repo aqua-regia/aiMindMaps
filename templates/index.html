@@ -13,7 +13,7 @@
         <header class="header">
             <button type="button" id="back-to-welcome-btn" class="back-to-welcome-btn" style="display: none;" onclick="goBackToWelcome()" title="Back to home">← Back</button>
             <h1>🗺️ AI Mind Map &amp; Diagrams</h1>
-            <p class="subtitle">Create mind maps, sequence diagrams, and flowcharts from text using AI</p>
+            <p class="subtitle">Create mind maps, sequence diagrams, flowcharts, and HLD architecture diagrams from text using AI</p>
         </header>
 
         <!-- Main Content - Full Screen Layout -->
@@ -35,6 +35,9 @@
                         <button class="btn btn-outline" onclick="showFlowchartDialog()">
                             📋 New Flowchart
                         </button>
+                        <button class="btn btn-outline" onclick="showAwsArchitectureDialog()">
+                            🏗️ New HLD Architecture
+                        </button>
                     </div>
 
                     <div class="sidebar-section sidebar-section-third">
@@ -55,6 +58,13 @@
                         <h2>Saved Flowcharts</h2>
                         <div id="flowchart-list" class="mindmap-list mindmap-list-scroll">
                             <p class="empty-state">No flowcharts yet</p>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section sidebar-section-third">
+                        <h2>Saved HLD Architectures</h2>
+                        <div id="aws-architecture-list" class="mindmap-list mindmap-list-scroll">
+                            <p class="empty-state">No HLD diagrams yet</p>
                         </div>
                     </div>
                 </div>
@@ -135,9 +145,14 @@
 
                     <div class="sidebar-section" id="update-prompt-section" style="display: none;">
                         <h2>Update with prompt</h2>
-                        <p class="sidebar-hint">Change the current diagram or mind map by describing what to add or change.</p>
+                        <p class="sidebar-hint">Describe what to add, remove, or change. For HLD diagrams, only components and relationships you explicitly name will appear.</p>
+                        <div class="form-group" id="last-prompt-group" style="display: none;">
+                            <label for="last-prompt-display">Last prompt</label>
+                            <div id="last-prompt-display" class="last-prompt-display" aria-live="polite"></div>
+                        </div>
                         <div class="form-group">
-                            <textarea id="update-prompt-input" rows="3" placeholder="e.g. Add a step where Server validates the token"></textarea>
+                            <label for="update-prompt-input">New prompt</label>
+                            <textarea id="update-prompt-input" rows="4" placeholder="e.g. Add an arrow from WAL to SSTable labeled flush"></textarea>
                         </div>
                         <button class="btn btn-primary" onclick="updateWithPrompt()">Update</button>
                     </div>
@@ -203,6 +218,30 @@
         </div>
     </div>
 
+    <!-- AWS Architecture Create Dialog -->
+    <div id="aws-architecture-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2>Create HLD Architecture Diagram</h2>
+                <button class="close-btn" onclick="hideAwsArchitectureDialog()">×</button>
+            </div>
+            <div class="dialog-body">
+                <div class="form-group">
+                    <label for="aws-architecture-title">Title (optional):</label>
+                    <input type="text" id="aws-architecture-title" placeholder="e.g. Twitter post service">
+                </div>
+                <div class="form-group">
+                    <label for="aws-architecture-text">Describe the architecture:</label>
+                    <textarea id="aws-architecture-text" rows="12" placeholder="List only the components and relationships you want drawn. Example: LSM tree with memtable, WAL, and SSTable — writes go to memtable and WAL, memtable flushes to SSTable. Do not ask for extras you don't want; only named parts appear."></textarea>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn btn-secondary" onclick="hideAwsArchitectureDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="createAwsArchitectureDiagram()">Create</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Flowchart Create Dialog -->
     <div id="flowchart-dialog" class="dialog-overlay" style="display: none;">
         <div class="dialog">
@@ -228,6 +267,7 @@
     </div>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="{{ url_for('static', filename='js/aws-icons.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';

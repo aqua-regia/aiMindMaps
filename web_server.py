@@ -10,15 +10,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from config import Config
-from app.models.database import Database, MindMapModel, SequenceDiagramModel, FlowchartModel
+from app.models.database import Database, MindMapModel, SequenceDiagramModel, FlowchartModel, AwsArchitectureModel
 from app.repositories.mindmap_repository import MindMapRepository
 from app.repositories.sequence_diagram_repository import SequenceDiagramRepository
 from app.repositories.flowchart_repository import FlowchartRepository
+from app.repositories.aws_architecture_repository import AwsArchitectureRepository
 from app.services.ai_service import AIService
 from app.services.mindmap_service import MindMapService
 from app.services.sequence_diagram_service import SequenceDiagramService
 from app.services.flowchart_service import FlowchartService
+from app.services.aws_architecture_service import AwsArchitectureService
 from app.services.visualization_service import VisualizationService
+from app.utils.aws_icon_index import get_manifest, match_icon
 import json
 
 app = Flask(__name__)
@@ -30,10 +33,11 @@ mindmap_service = None
 visualization_service = None
 sequence_diagram_service = None
 flowchart_service = None
+aws_architecture_service = None
 
 def init_services():
     """Initialize all services"""
-    global database, mindmap_service, visualization_service, sequence_diagram_service, flowchart_service
+    global database, mindmap_service, visualization_service, sequence_diagram_service, flowchart_service, aws_architecture_service
 
     if not Config.DEEPSEEK_API_KEY:
         raise ValueError("DEEPSEEK_API_KEY not found in environment variables")
@@ -42,17 +46,19 @@ def init_services():
     repository = MindMapRepository(database)
     seq_repo = SequenceDiagramRepository(database)
     flow_repo = FlowchartRepository(database)
+    aws_repo = AwsArchitectureRepository(database)
     ai_service = AIService()
     mindmap_service = MindMapService(ai_service, repository)
     visualization_service = VisualizationService()
     sequence_diagram_service = SequenceDiagramService(ai_service, seq_repo)
     flowchart_service = FlowchartService(ai_service, flow_repo)
+    aws_architecture_service = AwsArchitectureService(ai_service, aws_repo)
 
 @app.before_request
 def ensure_services_initialized():
     """Ensure services are initialized before handling requests"""
-    global database, mindmap_service, visualization_service, sequence_diagram_service, flowchart_service
-    if database is None or mindmap_service is None or visualization_service is None or sequence_diagram_service is None or flowchart_service is None:
+    global database, mindmap_service, visualization_service, sequence_diagram_service, flowchart_service, aws_architecture_service
+    if database is None or mindmap_service is None or visualization_service is None or sequence_diagram_service is None or flowchart_service is None or aws_architecture_service is None:
         init_services()
 
 @app.route('/')
@@ -67,6 +73,38 @@ def get_config():
         return jsonify(Config.get_frontend_config())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/aws-icons/<path:filepath>')
+def serve_aws_icons(filepath):
+    """Serve AWS architecture PNG icons from aws_icons/."""
+    icons_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aws_icons')
+    return send_from_directory(icons_dir, filepath)
+
+
+@app.route('/api/aws-icons/manifest', methods=['GET'])
+def aws_icons_manifest():
+    """Return searchable index of all AWS icons."""
+    try:
+        return jsonify(get_manifest())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-icons/match', methods=['GET'])
+def aws_icons_match():
+    """Match a node label to the best AWS icon."""
+    try:
+        label = (request.args.get('label') or '').strip()
+        if not label:
+            return jsonify({'error': 'label query param is required'}), 400
+        icon = match_icon(label)
+        if not icon:
+            return jsonify({'match': None})
+        return jsonify({'match': icon})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/mindmaps', methods=['GET'])
 def get_mindmaps():
@@ -383,6 +421,101 @@ def delete_flowchart_note(diagram_id, note_id):
         if success:
             return jsonify({'success': True})
         return jsonify({'error': 'Note or flowchart not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ---------- AWS Architecture Diagram API ----------
+@app.route('/api/aws-architecture-diagrams', methods=['GET'])
+def get_aws_architecture_diagrams():
+    """Get all AWS architecture diagrams."""
+    try:
+        return jsonify(aws_architecture_service.get_all())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-architecture-diagrams', methods=['POST'])
+def create_aws_architecture_diagram():
+    """Create a new AWS architecture diagram from text using AI."""
+    try:
+        data = request.json or {}
+        text = data.get('text', '')
+        title = (data.get('title') or '').strip() or 'HLD Architecture'
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+        diagram = aws_architecture_service.create_from_text(text, title)
+        return jsonify(diagram)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-architecture-diagrams/<diagram_id>', methods=['GET'])
+def get_aws_architecture_diagram(diagram_id):
+    """Get a specific AWS architecture diagram."""
+    try:
+        diagram = aws_architecture_service.get_diagram(diagram_id)
+        if not diagram:
+            return jsonify({'error': 'AWS architecture diagram not found'}), 404
+        return jsonify(diagram)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-architecture-diagrams/<diagram_id>', methods=['PATCH'])
+def update_aws_architecture_diagram(diagram_id):
+    """Rename an AWS architecture diagram or update it from a prompt."""
+    try:
+        data = request.json or {}
+        new_title = data.get('title')
+        prompt = data.get('prompt')
+        if new_title is not None:
+            diagram = aws_architecture_service.rename_diagram(diagram_id, new_title)
+        elif prompt:
+            diagram = aws_architecture_service.update_from_prompt(diagram_id, prompt)
+        else:
+            return jsonify({'error': 'Provide "title" or "prompt" in body'}), 400
+        if not diagram:
+            return jsonify({'error': 'AWS architecture diagram not found'}), 404
+        return jsonify(diagram)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-architecture-diagrams/<diagram_id>/annotations', methods=['PUT'])
+def put_aws_architecture_annotations(diagram_id):
+    """Save canvas annotation notes for an AWS architecture diagram."""
+    try:
+        data = request.json or {}
+        if 'annotations' not in data:
+            return jsonify({'error': 'annotations array is required'}), 400
+        annotations = data.get('annotations')
+        if not isinstance(annotations, list):
+            return jsonify({'error': 'annotations must be an array'}), 400
+        diagram = aws_architecture_service.save_annotations(diagram_id, annotations)
+        if not diagram:
+            return jsonify({'error': 'AWS architecture diagram not found'}), 404
+        return jsonify(diagram)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/aws-architecture-diagrams/<diagram_id>', methods=['DELETE'])
+def delete_aws_architecture_diagram(diagram_id):
+    """Delete an AWS architecture diagram."""
+    try:
+        success = aws_architecture_service.delete_diagram(diagram_id)
+        if success:
+            return jsonify({'success': True})
+        return jsonify({'error': 'AWS architecture diagram not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

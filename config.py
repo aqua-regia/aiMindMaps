@@ -6,6 +6,9 @@ load_dotenv()
 
 class Config:
     """Application configuration"""
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    PROMPTS_DIR = os.path.join(BASE_DIR, 'config', 'prompts')
+
     DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
     DEEPSEEK_BASE_URL = "https://api.deepseek.com"
     DEEPSEEK_MODEL = "deepseek-chat"

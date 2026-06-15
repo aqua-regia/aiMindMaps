@@ -2,6 +2,8 @@
 let currentMindMapId = null;
 let currentSequenceDiagramId = null;
 let currentFlowchartId = null;
+let currentAwsArchitectureId = null;
+let currentAwsArchitectureLastPrompt = '';
 let currentPalette = 'professional';
 let currentSeqDiagramStyle = 'colorful';
 let currentFontFamily = 'Arial, sans-serif';
@@ -9,6 +11,7 @@ let network = null;
 let mindmaps = [];
 let sequenceDiagrams = [];
 let flowcharts = [];
+let awsArchitectureDiagrams = [];
 let appConfig = null;
 
 // Layout constants - loaded from config
@@ -50,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadMindMaps();
     loadSequenceDiagrams();
     loadFlowcharts();
+    loadAwsArchitectureDiagrams();
     
     // Add resize listener to handle sidebar collapse/expand and window resize
     let resizeTimeout;
@@ -195,6 +199,42 @@ function renderFlowchartList() {
     `).join('');
 }
 
+// Load all AWS architecture diagrams
+async function loadAwsArchitectureDiagrams() {
+    try {
+        const response = await fetch('/api/aws-architecture-diagrams');
+        const data = await response.json();
+        awsArchitectureDiagrams = Array.isArray(data) ? data : [];
+        renderAwsArchitectureList();
+    } catch (error) {
+        console.error('Error loading AWS architecture diagrams:', error);
+        awsArchitectureDiagrams = [];
+        renderAwsArchitectureList();
+    }
+}
+
+// Render AWS architecture list in sidebar
+function renderAwsArchitectureList() {
+    const listContainer = document.getElementById('aws-architecture-list');
+    if (!listContainer) return;
+    if (awsArchitectureDiagrams.length === 0) {
+        listContainer.innerHTML = '<p class="empty-state">No HLD diagrams yet</p>';
+        return;
+    }
+    listContainer.innerHTML = awsArchitectureDiagrams.map(d => `
+        <div class="mindmap-item ${d.id === currentAwsArchitectureId ? 'active' : ''}" data-id="${escapeHtml(d.id)}" onclick="loadAwsArchitectureDiagram('${escapeHtml(d.id)}')">
+            <div class="mindmap-item-body">
+                <span class="mindmap-item-title">${escapeHtml(d.title)}</span>
+                <div class="mindmap-item-actions">
+                    <button type="button" class="item-btn rename-btn" title="Rename" onclick="event.stopPropagation(); startRenameAwsArchitecture('${escapeHtml(d.id)}')">✎</button>
+                    <button type="button" class="item-btn delete-btn" title="Delete" onclick="event.stopPropagation(); deleteAwsArchitecture('${escapeHtml(d.id)}')">🗑</button>
+                </div>
+            </div>
+            <div class="mindmap-item-date">${new Date(d.created_at).toLocaleDateString()}</div>
+        </div>
+    `).join('');
+}
+
 // Render mind map list (with rename & delete)
 function renderMindMapList() {
     const listContainer = document.getElementById('mindmap-list');
@@ -256,6 +296,17 @@ function hideFlowchartDialog() {
     document.getElementById('flowchart-text').value = '';
 }
 
+function showAwsArchitectureDialog() {
+    document.getElementById('aws-architecture-dialog').style.display = 'flex';
+    document.getElementById('aws-architecture-text').focus();
+}
+
+function hideAwsArchitectureDialog() {
+    document.getElementById('aws-architecture-dialog').style.display = 'none';
+    document.getElementById('aws-architecture-title').value = '';
+    document.getElementById('aws-architecture-text').value = '';
+}
+
 // Create new sequence diagram
 async function createSequenceDiagram() {
     const title = document.getElementById('seq-title').value.trim();
@@ -282,12 +333,15 @@ async function createSequenceDiagram() {
         }
         currentSequenceDiagramId = diagram.id;
         currentMindMapId = null;
+        currentFlowchartId = null;
+        currentAwsArchitectureId = null;
         displaySequenceDiagram(diagram);
         hideLoading();
         await loadSequenceDiagrams();
         renderSequenceDiagramList();
         loadMindMaps();
         loadFlowcharts();
+        loadAwsArchitectureDiagrams();
     } catch (error) {
         alert('Error: ' + error.message);
         hideLoading();
@@ -300,6 +354,7 @@ async function loadSequenceDiagram(id) {
     currentSequenceDiagramId = id;
     currentMindMapId = null;
     currentFlowchartId = null;
+    currentAwsArchitectureId = null;
     try {
         const response = await fetch(`/api/sequence-diagrams/${id}`);
         if (!response.ok) {
@@ -311,6 +366,7 @@ async function loadSequenceDiagram(id) {
         renderSequenceDiagramList();
         renderMindMapList();
         renderFlowchartList();
+        renderAwsArchitectureList();
         showUpdatePromptSection();
     } catch (error) {
         alert('Error: ' + error.message);
@@ -318,11 +374,22 @@ async function loadSequenceDiagram(id) {
     }
 }
 
+function setLastPromptDisplay(prompt) {
+    const group = document.getElementById('last-prompt-group');
+    const display = document.getElementById('last-prompt-display');
+    if (!group || !display) return;
+    const text = (prompt || '').trim();
+    const show = currentAwsArchitectureId && text;
+    group.style.display = show ? 'block' : 'none';
+    display.textContent = show ? text : '';
+}
+
 function showUpdatePromptSection() {
     const section = document.getElementById('update-prompt-section');
-    if (section) section.style.display = (currentMindMapId || currentSequenceDiagramId || currentFlowchartId) ? 'block' : 'none';
+    if (section) section.style.display = (currentMindMapId || currentSequenceDiagramId || currentFlowchartId || currentAwsArchitectureId) ? 'block' : 'none';
     const input = document.getElementById('update-prompt-input');
     if (input) input.value = '';
+    setLastPromptDisplay(currentAwsArchitectureId ? currentAwsArchitectureLastPrompt : '');
 }
 
 function hideUpdatePromptSection() {
@@ -399,13 +466,18 @@ async function commitRename(input) {
     } else if (kind === 'sequence') {
         const d = sequenceDiagrams.find(x => x.id === id);
         titleSpan.textContent = d ? d.title : newTitle || 'Sequence Diagram';
+    } else if (kind === 'aws-architecture') {
+        const d = awsArchitectureDiagrams.find(x => x.id === id);
+        titleSpan.textContent = d ? d.title : newTitle || 'HLD Architecture';
     } else {
         const f = flowcharts.find(x => x.id === id);
         titleSpan.textContent = f ? f.title : newTitle || 'Flowchart';
     }
     input.replaceWith(titleSpan);
     if (!newTitle) return;
-    const url = kind === 'mindmap' ? `/api/mindmaps/${id}` : (kind === 'flowchart' ? `/api/flowcharts/${id}` : `/api/sequence-diagrams/${id}`);
+    const url = kind === 'mindmap' ? `/api/mindmaps/${id}`
+        : (kind === 'flowchart' ? `/api/flowcharts/${id}`
+        : (kind === 'aws-architecture' ? `/api/aws-architecture-diagrams/${id}` : `/api/sequence-diagrams/${id}`));
     try {
         const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: newTitle }) });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Rename failed');
@@ -413,12 +485,15 @@ async function commitRename(input) {
             await loadMindMaps();
         } else if (kind === 'sequence') {
             await loadSequenceDiagrams();
+        } else if (kind === 'aws-architecture') {
+            await loadAwsArchitectureDiagrams();
         } else {
             await loadFlowcharts();
         }
         renderMindMapList();
         renderSequenceDiagramList();
         renderFlowchartList();
+        renderAwsArchitectureList();
     } catch (e) {
         console.error(e);
         if (kind === 'mindmap') {
@@ -427,6 +502,9 @@ async function commitRename(input) {
         } else if (kind === 'sequence') {
             const d = sequenceDiagrams.find(x => x.id === id);
             titleSpan.textContent = d ? d.title : 'Sequence Diagram';
+        } else if (kind === 'aws-architecture') {
+            const d = awsArchitectureDiagrams.find(x => x.id === id);
+            titleSpan.textContent = d ? d.title : 'HLD Architecture';
         } else {
             const f = flowcharts.find(x => x.id === id);
             titleSpan.textContent = f ? f.title : 'Flowchart';
@@ -448,6 +526,27 @@ function startRenameFlowchart(id) {
     input.value = orig;
     input.dataset.id = id;
     input.dataset.kind = 'flowchart';
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+    input.onblur = () => commitRename(input);
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.value = orig; input.blur(); } };
+}
+
+function startRenameAwsArchitecture(id) {
+    const d = awsArchitectureDiagrams.find(x => x.id === id);
+    if (!d) return;
+    const item = document.querySelector(`#aws-architecture-list .mindmap-item[data-id="${id.replace(/"/g, '&quot;')}"]`);
+    if (!item) return;
+    const titleEl = item.querySelector('.mindmap-item-title');
+    if (!titleEl) return;
+    const orig = titleEl.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'item-rename-input';
+    input.value = orig;
+    input.dataset.id = id;
+    input.dataset.kind = 'aws-architecture';
     titleEl.replaceWith(input);
     input.focus();
     input.select();
@@ -506,6 +605,27 @@ async function deleteFlowchart(id) {
         renderMindMapList();
         renderSequenceDiagramList();
         renderFlowchartList();
+        renderAwsArchitectureList();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteAwsArchitecture(id) {
+    if (!confirm('Delete this AWS architecture diagram? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`/api/aws-architecture-diagrams/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        if (currentAwsArchitectureId === id) {
+            currentAwsArchitectureId = null;
+            showWelcome();
+            hideUpdatePromptSection();
+        }
+        await loadAwsArchitectureDiagrams();
+        renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+        renderAwsArchitectureList();
     } catch (e) {
         alert('Error: ' + e.message);
     }
@@ -518,6 +638,12 @@ function changeSeqDiagramStyle(style) {
     });
     if (currentSequenceDiagramId) {
         loadSequenceDiagram(currentSequenceDiagramId);
+    }
+    if (currentFlowchartId) {
+        loadFlowchart(currentFlowchartId);
+    }
+    if (currentAwsArchitectureId) {
+        loadAwsArchitectureDiagram(currentAwsArchitectureId);
     }
 }
 
@@ -591,7 +717,30 @@ async function updateWithPrompt() {
         }
         return;
     }
-    alert('Select a mind map, sequence diagram, or flowchart first.');
+    if (currentAwsArchitectureId) {
+        showLoading();
+        try {
+            const res = await fetch(`/api/aws-architecture-diagrams/${currentAwsArchitectureId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Update failed');
+            const diagram = await res.json();
+            if (input) input.value = '';
+            currentAwsArchitectureLastPrompt = diagram.last_prompt || prompt;
+            setLastPromptDisplay(currentAwsArchitectureLastPrompt);
+            displayAwsArchitectureDiagram(diagram);
+            loadAwsArchitectureDiagrams();
+            renderAwsArchitectureList();
+            hideLoading();
+        } catch (e) {
+            alert('Error: ' + e.message);
+            hideLoading();
+        }
+        return;
+    }
+    alert('Select a mind map, sequence diagram, flowchart, or HLD architecture diagram first.');
 }
 
 // Sanitize Mermaid sequence diagram to avoid common parse errors
@@ -699,12 +848,14 @@ async function createFlowchart() {
         currentFlowchartId = diagram.id;
         currentMindMapId = null;
         currentSequenceDiagramId = null;
+        currentAwsArchitectureId = null;
         displayFlowchart(diagram);
         hideLoading();
         await loadFlowcharts();
         renderFlowchartList();
         loadMindMaps();
         loadSequenceDiagrams();
+        loadAwsArchitectureDiagrams();
     } catch (error) {
         alert('Error: ' + error.message);
         hideLoading();
@@ -717,6 +868,7 @@ async function loadFlowchart(id) {
     currentFlowchartId = id;
     currentMindMapId = null;
     currentSequenceDiagramId = null;
+    currentAwsArchitectureId = null;
     try {
         const response = await fetch(`/api/flowcharts/${id}`);
         if (!response.ok) {
@@ -728,10 +880,285 @@ async function loadFlowchart(id) {
         renderFlowchartList();
         renderMindMapList();
         renderSequenceDiagramList();
+        renderAwsArchitectureList();
         showUpdatePromptSection();
     } catch (error) {
         alert('Error: ' + error.message);
         hideLoading();
+    }
+}
+
+async function createAwsArchitectureDiagram() {
+    const title = document.getElementById('aws-architecture-title').value.trim();
+    const text = document.getElementById('aws-architecture-text').value.trim();
+    if (!text) {
+        alert('Please describe the architecture');
+        return;
+    }
+    hideAwsArchitectureDialog();
+    showLoading();
+    try {
+        const response = await fetch('/api/aws-architecture-diagrams', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, title: title || undefined })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to create AWS architecture diagram');
+        }
+        const diagram = await response.json();
+        if (!diagram || !diagram.id) throw new Error('Invalid response: diagram not saved');
+        currentAwsArchitectureId = diagram.id;
+        currentMindMapId = null;
+        currentSequenceDiagramId = null;
+        currentFlowchartId = null;
+        currentAwsArchitectureLastPrompt = diagram.last_prompt || text;
+        displayAwsArchitectureDiagram(diagram);
+        hideLoading();
+        await loadAwsArchitectureDiagrams();
+        renderAwsArchitectureList();
+        loadMindMaps();
+        loadSequenceDiagrams();
+        loadFlowcharts();
+        showUpdatePromptSection();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+async function loadAwsArchitectureDiagram(id) {
+    showLoading();
+    currentAwsArchitectureId = id;
+    currentMindMapId = null;
+    currentSequenceDiagramId = null;
+    currentFlowchartId = null;
+    try {
+        const response = await fetch(`/api/aws-architecture-diagrams/${id}`);
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to load AWS architecture diagram');
+        }
+        const diagram = await response.json();
+        currentAwsArchitectureLastPrompt = diagram.last_prompt || '';
+        displayAwsArchitectureDiagram(diagram);
+        renderAwsArchitectureList();
+        renderMindMapList();
+        renderSequenceDiagramList();
+        renderFlowchartList();
+        showUpdatePromptSection();
+    } catch (error) {
+        alert('Error: ' + error.message);
+        hideLoading();
+    }
+}
+
+function injectArchitectureMermaidInit(syntax) {
+    if (!syntax || /%%\s*\{\s*init/i.test(syntax)) return syntax;
+    var lines = syntax.split('\n');
+    if (!lines.length || !/^flowchart\s+lr\b/i.test(lines[0].trim())) return syntax;
+    lines.splice(1, 0, "%%{init: {'flowchart': {'nodeSpacing': 90, 'rankSpacing': 100, 'titleTopMargin': 24, 'padding': 32, 'diagramPadding': 36}}}%%");
+    return lines.join('\n');
+}
+
+function cleanupArchitectureMermaid(syntax) {
+    if (!syntax || !/flowchart/i.test(syntax)) return syntax;
+
+    var invisibleLayoutRe = /^\s*\w+(?:\s*~~~\s*\w+)+\s*$/;
+    var lines = syntax.split('\n');
+    var header = [];
+    var body = [];
+    var inHeader = true;
+
+    lines.forEach(function(line) {
+        var stripped = line.trim();
+        if (!stripped) {
+            if (inHeader) header.push(line);
+            else body.push(line);
+            return;
+        }
+        if (inHeader && (/^flowchart/i.test(stripped) || stripped.indexOf('%%') === 0)) {
+            header.push(/^flowchart/i.test(stripped) ? 'flowchart LR' : line);
+            return;
+        }
+        inHeader = false;
+        if (invisibleLayoutRe.test(stripped)) return;
+        body.push(line.replace(/\s+$/, ''));
+    });
+
+    if (!header.length || !header.some(function(l) { return /^flowchart/i.test(l.trim()); })) {
+        header.unshift('flowchart LR');
+    }
+    return header.concat(body).join('\n');
+}
+
+function sanitizeAwsArchitectureSyntax(syntax) {
+    if (!syntax || typeof syntax !== 'string') return syntax;
+    var s = syntax.trim();
+    if (s.toLowerCase().startsWith('flowchart td')) {
+        s = 'flowchart LR' + s.substring(12);
+    } else if (!s.toLowerCase().startsWith('flowchart')) {
+        s = 'flowchart LR\n' + s;
+    } else if (!/^flowchart\s+lr\b/i.test(s)) {
+        s = s.replace(/^flowchart\s+\w+/i, 'flowchart LR');
+    }
+    return injectArchitectureMermaidInit(cleanupArchitectureMermaid(s));
+}
+
+async function displayAwsArchitectureDiagram(diagram) {
+    const container = document.getElementById('mindmap-container');
+    if (!container) return;
+    let mermaidSyntax = diagram.mermaid_syntax || diagram.mermaidSyntax;
+    if (!mermaidSyntax) {
+        container.innerHTML = '<p class="error">No architecture diagram data</p>';
+        hideLoading();
+        return;
+    }
+    mermaidSyntax = sanitizeAwsArchitectureSyntax(mermaidSyntax);
+    var styleClass = currentSeqDiagramStyle === 'bw' ? 'seq-bw' : 'seq-colorful';
+    var paletteClass = (currentSeqDiagramStyle === 'bw') ? '' : (' seq-palette-' + (currentPalette || 'professional'));
+    container.innerHTML = '<div id="aws-architecture-wrap" class="sequence-diagram-wrap aws-architecture-wrap ' + styleClass + paletteClass + '"></div>';
+    const wrap = document.getElementById('aws-architecture-wrap');
+    const uniqueId = 'mermaid-aws-' + Date.now();
+    try {
+        if (typeof window.mermaid === 'undefined') {
+            wrap.innerHTML = '<p class="error">Mermaid not loaded. Refresh the page.</p>';
+            hideLoading();
+            return;
+        }
+        if (window.mermaid && window.mermaid.initialize) {
+            window.mermaid.initialize({
+                startOnLoad: false,
+                theme: 'base',
+                securityLevel: 'loose',
+                themeVariables: {
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                    fontSize: '12px',
+                    lineColor: '#6b7a8a',
+                    primaryTextColor: '#37475a',
+                    edgeLabelBackground: 'rgba(255, 255, 255, 0.94)',
+                    fontSize: '13px',
+                    clusterBkg: 'rgba(237, 244, 250, 0.45)',
+                    clusterBorder: '#9ab4c8',
+                    tertiaryColor: '#f7f9fa'
+                },
+                flowchart: {
+                    htmlLabels: true,
+                    useMaxWidth: false,
+                    padding: 32,
+                    nodeSpacing: 90,
+                    rankSpacing: 100,
+                    titleTopMargin: 24,
+                    curve: 'basis',
+                    diagramPadding: 36
+                }
+            });
+        }
+        const { svg } = await window.mermaid.render(uniqueId, mermaidSyntax);
+        wrap.innerHTML = '<div class="aws-diagram-stage"></div>';
+        var stage = wrap.querySelector('.aws-diagram-stage');
+        stage.innerHTML = svg;
+        var svgEl = wrap.querySelector('svg');
+        if (svgEl && window.loadAwsIconManifest && window.applyAwsIconsToSvg) {
+            await window.loadAwsIconManifest();
+            window.applyAwsIconsToSvg(svgEl);
+            if (window.styleAwsArchitectureSvg) {
+                window.styleAwsArchitectureSvg(svgEl);
+            }
+            if (window.attachArchitectureAnnotations) {
+                window.attachArchitectureAnnotations(
+                    wrap,
+                    currentAwsArchitectureId,
+                    diagram.annotations || []
+                );
+            }
+        }
+        attachMermaidDiagramZoom('aws-architecture-wrap');
+        showBackButton();
+        if (currentAwsArchitectureId) showUpdatePromptSection();
+        hideLoading();
+    } catch (err) {
+        const errMsg = (err && (err.message || err.str || String(err))) || 'Unknown error';
+        console.error('Mermaid AWS architecture render error:', err);
+        wrap.innerHTML = '<p class="error">Could not render architecture diagram.</p><p class="error-detail">' + escapeHtml(errMsg) + '</p><pre class="mermaid-source">' + escapeHtml(mermaidSyntax) + '</pre>';
+        if (currentAwsArchitectureId) showUpdatePromptSection();
+        hideLoading();
+    }
+}
+
+function attachMermaidDiagramZoom(wrapId) {
+    var wrap = document.getElementById(wrapId);
+    var d3lib = typeof d3 !== 'undefined' ? d3 : (typeof window.d3 !== 'undefined' ? window.d3 : null);
+    if (!wrap) return;
+    var svgEl = wrap.querySelector('svg');
+    if (!svgEl) return;
+
+    var currentScale = 1;
+    var panX = 0;
+    var panY = 0;
+
+    function applyView() {
+        var transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentScale + ')';
+        wrap._diagramZoom = { k: currentScale, x: panX, y: panY };
+        if (window.syncArchitectureAnnotationLayer) {
+            window.syncArchitectureAnnotationLayer(wrap, transform);
+        }
+    }
+
+    wrap._diagramZoom = { k: 1, x: 0, y: 0 };
+
+    window.d3ZoomIn = function() {
+        currentScale = Math.min(5, currentScale * 1.3);
+        applyView();
+    };
+    window.d3ZoomOut = function() {
+        currentScale = Math.max(0.15, currentScale * 0.7);
+        applyView();
+    };
+    window.d3ResetZoom = function() {
+        currentScale = 1;
+        panX = 0;
+        panY = 0;
+        wrap._diagramZoom = { k: 1, x: 0, y: 0 };
+        if (window.syncArchitectureAnnotationLayer) {
+            window.syncArchitectureAnnotationLayer(wrap, '');
+        }
+    };
+
+    if (!d3lib) return;
+
+    try {
+        var zoom = d3lib.zoom()
+            .scaleExtent([0.15, 5])
+            .filter(function(event) {
+                return !event.ctrlKey && !event.button && event.type !== 'dblclick';
+            })
+            .on('zoom', function(ev) {
+                d3lib.select(wrap).attr('transform', null);
+                currentScale = ev.transform.k;
+                panX = ev.transform.x;
+                panY = ev.transform.y;
+                applyView();
+            });
+        var wrapSel = d3lib.select(wrap);
+        wrapSel.call(zoom);
+        wrapSel.on('dblclick.zoom', null);
+        window.d3ZoomIn = function() {
+            wrapSel.transition().duration(250).call(zoom.scaleBy, 1.3);
+        };
+        window.d3ZoomOut = function() {
+            wrapSel.transition().duration(250).call(zoom.scaleBy, 0.7);
+        };
+        window.d3ResetZoom = function() {
+            wrapSel.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity);
+        };
+    } catch (e) {
+        console.warn('Mermaid diagram zoom init failed:', e);
+    }
+
+    if (window.syncArchitectureAnnotationLayer) {
+        window.syncArchitectureAnnotationLayer(wrap, '');
     }
 }
 
@@ -878,37 +1305,7 @@ function attachSequenceDiagramZoom() {
 }
 
 function attachFlowchartZoom() {
-    var wrap = document.getElementById('flowchart-wrap');
-    var d3lib = typeof d3 !== 'undefined' ? d3 : (typeof window.d3 !== 'undefined' ? window.d3 : null);
-    if (!wrap || !d3lib) return;
-    var svgEl = wrap.querySelector('svg');
-    if (!svgEl) return;
-    try {
-        var baseW = parseFloat(svgEl.getAttribute('width'));
-        var baseH = parseFloat(svgEl.getAttribute('height'));
-        if (!(baseW > 0)) { try { var b = svgEl.getBBox(); baseW = b.width; baseH = b.height; } catch (e) { baseW = 800; baseH = 600; } }
-        if (!(baseH > 0)) baseH = 600;
-        var svg = d3lib.select(svgEl);
-        var inner = svg.select('g');
-        if (inner.empty()) inner = svg;
-        var zoom = d3lib.zoom().scaleExtent([0.15, 5]).on('zoom', function(ev) {
-            inner.attr('transform', ev.transform);
-            var k = ev.transform.k;
-            svgEl.setAttribute('width', Math.max(baseW * k, baseW * 0.5));
-            svgEl.setAttribute('height', Math.max(baseH * k, baseH * 0.5));
-        });
-        svg.call(zoom);
-        svgEl.style.overflow = 'visible';
-        window.d3ZoomIn = function() { svg.transition().duration(250).call(zoom.scaleBy, 1.3); };
-        window.d3ZoomOut = function() { svg.transition().duration(250).call(zoom.scaleBy, 0.7); };
-        window.d3ResetZoom = function() {
-            svg.transition().duration(250).call(zoom.transform, d3lib.zoomIdentity);
-            svgEl.setAttribute('width', baseW);
-            svgEl.setAttribute('height', baseH);
-        };
-    } catch (e) {
-        console.warn('Flowchart zoom init failed:', e);
-    }
+    attachMermaidDiagramZoom('flowchart-wrap');
 }
 
 function showBackButton() {
@@ -925,6 +1322,7 @@ function goBackToWelcome() {
     currentMindMapId = null;
     currentSequenceDiagramId = null;
     currentFlowchartId = null;
+    currentAwsArchitectureId = null;
     currentFlowchartDiagram = null;
     window.d3ZoomIn = null;
     window.d3ZoomOut = null;
@@ -935,6 +1333,7 @@ function goBackToWelcome() {
     renderMindMapList();
     renderSequenceDiagramList();
     renderFlowchartList();
+    renderAwsArchitectureList();
 }
 
 function renderFlowchartNotesPanels(notes) {
@@ -1114,6 +1513,7 @@ async function loadMindMap(id) {
     currentMindMapId = id;
     currentSequenceDiagramId = null;
     currentFlowchartId = null;
+    currentAwsArchitectureId = null;
     
     try {
         const response = await fetch(`/api/mindmaps/${id}?palette=${currentPalette}&fontFamily=${encodeURIComponent(currentFontFamily)}`);
@@ -1148,6 +1548,7 @@ async function loadMindMap(id) {
         renderMindMapList();
         renderSequenceDiagramList();
         renderFlowchartList();
+        renderAwsArchitectureList();
         showUpdatePromptSection();
     } catch (error) {
         console.error('Error loading mind map:', error);
@@ -2046,6 +2447,9 @@ async function changePalette(palette) {
         if (currentFlowchartId) {
             await loadFlowchart(currentFlowchartId);
         }
+        if (currentAwsArchitectureId) {
+            await loadAwsArchitectureDiagram(currentAwsArchitectureId);
+        }
     } catch (error) {
         console.error('Error changing palette:', error);
         alert('Error changing color palette: ' + error.message);
@@ -2150,6 +2554,9 @@ async function changeFont(fontFamily) {
         }
         if (currentFlowchartId) {
             await loadFlowchart(currentFlowchartId);
+        }
+        if (currentAwsArchitectureId) {
+            await loadAwsArchitectureDiagram(currentAwsArchitectureId);
         }
     } catch (error) {
         console.error('Error changing font:', error);

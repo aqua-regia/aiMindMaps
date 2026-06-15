@@ -41,6 +41,19 @@ class FlowchartModel(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class AwsArchitectureModel(Base):
+    """Database model for AI-generated AWS architecture diagrams"""
+    __tablename__ = 'aws_architecture_diagrams'
+
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    mermaid_syntax = Column(Text, nullable=False)  # Mermaid flowchart code
+    annotations = Column(JSON, default=list)  # [{ id, x, y, text, width?, height?, userSized? }]
+    last_prompt = Column(Text, nullable=True)  # most recent create or update prompt
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class Database:
     """Database connection and session management"""
 
@@ -49,6 +62,8 @@ class Database:
         self.engine = create_engine(self.database_url, echo=False)
         Base.metadata.create_all(self.engine)
         self._ensure_flowchart_notes_column()
+        self._ensure_aws_architecture_annotations_column()
+        self._ensure_aws_architecture_last_prompt_column()
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def _ensure_flowchart_notes_column(self):
@@ -61,6 +76,38 @@ class Database:
                     cols = [row[1] for row in r]
                     if 'notes' not in cols:
                         conn.execute(text("ALTER TABLE flowcharts ADD COLUMN notes TEXT DEFAULT '[]'"))
+                        conn.commit()
+        except Exception:
+            pass
+
+    def _ensure_aws_architecture_annotations_column(self):
+        """Add annotations column to aws_architecture_diagrams if missing (e.g. existing DB)."""
+        try:
+            from sqlalchemy import text
+            with self.engine.connect() as conn:
+                if self.engine.dialect.name == 'sqlite':
+                    r = conn.execute(text("PRAGMA table_info(aws_architecture_diagrams)"))
+                    cols = [row[1] for row in r]
+                    if 'annotations' not in cols:
+                        conn.execute(text(
+                            "ALTER TABLE aws_architecture_diagrams ADD COLUMN annotations TEXT DEFAULT '[]'"
+                        ))
+                        conn.commit()
+        except Exception:
+            pass
+
+    def _ensure_aws_architecture_last_prompt_column(self):
+        """Add last_prompt column to aws_architecture_diagrams if missing."""
+        try:
+            from sqlalchemy import text
+            with self.engine.connect() as conn:
+                if self.engine.dialect.name == 'sqlite':
+                    r = conn.execute(text("PRAGMA table_info(aws_architecture_diagrams)"))
+                    cols = [row[1] for row in r]
+                    if 'last_prompt' not in cols:
+                        conn.execute(text(
+                            "ALTER TABLE aws_architecture_diagrams ADD COLUMN last_prompt TEXT"
+                        ))
                         conn.commit()
         except Exception:
             pass
